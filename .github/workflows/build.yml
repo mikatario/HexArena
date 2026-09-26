@@ -1,1 +1,35 @@
 
+name: Windows版exeを作る
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 必要なものをインストール
+        run: pip install -r requirements.txt
+      - name: exeを作る
+        run: pyinstaller --noconfirm --onefile --windowed --name HexArena --add-data "assets;assets" main.py
+      - name: 成果物として保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: HexArena-windows
+          path: dist/HexArena.exe
+      - name: ダウンロードページ（Releases）に公開
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: ヘックス・アリーナ ビルド ${{ github.run_number }}
+          body: HexArena.exe をダウンロードして起動してください。対戦する人は全員同じビルドを使ってください。
+          files: dist/HexArena.exe
