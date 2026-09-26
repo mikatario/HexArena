@@ -1,0 +1,5 @@
+このゲームには「Noto Sans JP」フォント（Google / Adobe）を同梱しています。
+ライセンス：SIL Open Font License 1.1
+https://openfontlicense.org/
+入手元：https://github.com/notofonts/noto-cjk
+フォント単体を販売することはできませんが、ゲームへの同梱・再配布は自由です。
