@@ -1,5 +1,5 @@
 {
- "data_version": "コントローラー追加（2026-09-26）",
+ "data_version": "アイテム追加（2026-09-26）",
  "settings": {
   "start_hp": 100,
   "star_mult": [
@@ -2122,5 +2122,122 @@
    },
    "desc": "{cost}ゴールドで、次の{rounds}回の戦闘だけ味方全員の攻撃力+{atk_pct}%・最大HP+{hp_pct}%"
   }
- ]
+ ],
+ "items": [
+  {
+   "id": "gold_bag",
+   "name": "金貨袋",
+   "icon": "金",
+   "color": "#e0b040",
+   "type": "gold",
+   "params": {
+    "amount": 5
+   },
+   "weight": 30,
+   "desc": "すぐに{amount}ゴールドを得る"
+  },
+  {
+   "id": "treasure",
+   "name": "宝箱",
+   "icon": "宝",
+   "color": "#d98a2b",
+   "type": "gold",
+   "params": {
+    "amount": 12
+   },
+   "weight": 6,
+   "desc": "すぐに{amount}ゴールドを得る"
+  },
+  {
+   "id": "xp_book",
+   "name": "知恵の書",
+   "icon": "書",
+   "color": "#4a8fe0",
+   "type": "xp",
+   "params": {
+    "amount": 6
+   },
+   "weight": 20,
+   "desc": "すぐに経験値を{amount}得る"
+  },
+  {
+   "id": "reroll_card",
+   "name": "引き直し札",
+   "icon": "札",
+   "color": "#6fb3c9",
+   "type": "reroll",
+   "params": {},
+   "weight": 22,
+   "desc": "ゴールドを使わずにショップを引き直す"
+  },
+  {
+   "id": "potion",
+   "name": "回復薬",
+   "icon": "薬",
+   "color": "#e05a6a",
+   "type": "heal",
+   "params": {
+    "amount": 10
+   },
+   "weight": 14,
+   "desc": "体力を{amount}回復する（最大体力まで）"
+  },
+  {
+   "id": "summon_scroll",
+   "name": "召喚の巻物",
+   "icon": "巻",
+   "color": "#9b6ad6",
+   "type": "summon",
+   "params": {
+    "tier": 3,
+    "count": 1
+   },
+   "weight": 12,
+   "desc": "ランダムな{tier}コストユニットを{count}体ベンチにもらう"
+  },
+  {
+   "id": "growth_seed",
+   "name": "成長の実",
+   "icon": "実",
+   "color": "#5fb85a",
+   "type": "star_up",
+   "params": {
+    "count": 1
+   },
+   "weight": 4,
+   "desc": "コストが一番高い★1ユニット{count}体を★2にする"
+  },
+  {
+   "id": "mirror",
+   "name": "分身の鏡",
+   "icon": "鏡",
+   "color": "#a9b7cf",
+   "type": "duplicate",
+   "params": {},
+   "weight": 9,
+   "desc": "持っている★1ユニット1体（一番コストが高いもの）のコピーをもらう"
+  },
+  {
+   "id": "war_drum",
+   "name": "闘気の太鼓",
+   "icon": "鼓",
+   "color": "#c2553a",
+   "type": "battle_buff",
+   "params": {
+    "atk_pct": 20,
+    "hp_pct": 0,
+    "rounds": 1
+   },
+   "weight": 12,
+   "desc": "次の{rounds}回の戦闘だけ味方全員の攻撃力+{atk_pct}%"
+  }
+ ],
+ "item_drops": {
+  "pve_win": 1,
+  "pve_bonus_chance": 30,
+  "streak_every": 3,
+  "loss_chance": 20,
+  "max_items": 6,
+  "full_gold": 2
+ }
 }

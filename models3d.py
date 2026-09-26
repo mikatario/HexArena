@@ -942,20 +942,21 @@ def _finish(root, holder, tmpl, s, look):
                  body.find("aura"), h * s + 0.12, look)
 
 
-def make_model(uid, info, star, team_color, is_creep=False):
-    """ユニット1体分のモデル（テンプレートをコピー）"""
+def make_model(uid, info, star, team_color, is_creep=False, bare=False):
+    """ユニット1体分のモデル（テンプレートをコピー）。bare=True で台座なし（絵を作る用）"""
     look = info.get("look") or ("slime" if is_creep else "warrior")
     element = info["traits"][0] if not is_creep else "_creep"
     cost = 0 if is_creep else info.get("cost", 1)
     trim = (150, 95, 70) if is_creep else COST_TRIM.get(cost, (150, 150, 160))
     tmpl = _template(look, uid, element, cost)
     root = NodePath("unit")
-    base_n, team_n = _base_node(tuple(team_color), trim, star)
-    root.attachNewNode(base_n)
-    tn = root.attachNewNode(team_n)
-    tn.setLightOff(1)
-    tn.setShaderOff(1)
-    tn.setTransparency(TransparencyAttrib.MAlpha)
+    if not bare:
+        base_n, team_n = _base_node(tuple(team_color), trim, star)
+        root.attachNewNode(base_n)
+        tn = root.attachNewNode(team_n)
+        tn.setLightOff(1)
+        tn.setShaderOff(1)
+        tn.setTransparency(TransparencyAttrib.MAlpha)
     holder = root.attachNewNode("holder")
     s = LOOK_SCALE.get(look, 1.0) * [1.0, 1.12, 1.25][star - 1]
     return _finish(root, holder, tmpl, s, look)
@@ -1106,7 +1107,7 @@ CONTROLLER_BUILDERS = {"merchant": ctrl_merchant, "sage": ctrl_sage, "smith": ct
 _ctrl_templates = {}
 
 
-def make_controller(cid, info, team_color, scale=1.25):
+def make_controller(cid, info, team_color, scale=1.25, bare=False):
     """コントローラー（プレイヤーの分身）のモデル"""
     look = info.get("look") or "merchant"
     col = hexcol(info.get("color", ""), rgb(120, 120, 200))
@@ -1119,15 +1120,16 @@ def make_controller(cid, info, team_color, scale=1.25):
         tmpl.setPythonTag("height", p.height)
         _ctrl_templates[key] = tmpl
     root = NodePath("controller")
-    mb = MB()
-    cyl(mb, M((0, 0, 0)), 0.62, 0.58, 0.08, shade(col, 0.45), seg=32, c_top=shade(col, 0.7))
-    root.attachNewNode(mb.node("pedestal"))
-    mb2 = MB()
-    ring(mb2, M((0, 0, 0.085)), 0.6, 0.7, rgb(*team_color, 0.9), seg=40)
-    tn = root.attachNewNode(mb2.node("team"))
-    tn.setLightOff(1)
-    tn.setShaderOff(1)
-    tn.setTransparency(TransparencyAttrib.MAlpha)
+    if not bare:
+        mb = MB()
+        cyl(mb, M((0, 0, 0)), 0.62, 0.58, 0.08, shade(col, 0.45), seg=32, c_top=shade(col, 0.7))
+        root.attachNewNode(mb.node("pedestal"))
+        mb2 = MB()
+        ring(mb2, M((0, 0, 0.085)), 0.6, 0.7, rgb(*team_color, 0.9), seg=40)
+        tn = root.attachNewNode(mb2.node("team"))
+        tn.setLightOff(1)
+        tn.setShaderOff(1)
+        tn.setTransparency(TransparencyAttrib.MAlpha)
     holder = root.attachNewNode("holder")
     m = _finish(root, holder, tmpl, 1.1 * scale, look)
     m.body.setZ(0.09)

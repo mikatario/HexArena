@@ -7,6 +7,8 @@ on:
     paths-ignore:
       - "unit_data.json"
       - "editor/**"
+      - "docs/**"
+      - "tools/**"
       - "README.md"
   workflow_dispatch:
 

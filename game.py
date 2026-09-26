@@ -38,6 +38,11 @@ class Player:
         self.extra_slots = 0       # 盤面に置ける数の追加分
         self.buff = None           # 戦闘強化 {"atk_pct", "hp_pct", "rounds"}
         self.ai_skill_round = 0    # AIがスキルを使うつもりのラウンド
+        self.items = []            # 持っているアイテムID
+        self.item_seq = 0          # 手に入れた回数（効果音用）
+        self.item_used_seq = 0
+        self.item_notes = []       # このラウンドに手に入れたアイテムのお知らせ
+        self.item_buff = None      # アイテムによる戦闘強化
 
     def say(self, text):
         self.toast = text
@@ -122,25 +127,7 @@ class Game:
         c = data.CONTROLLERS[p.controller]
         pr = c["params"]
         t = c["type"]
-        ok = True
-        if t == "gold_gain":
-            p.gold += int(pr.get("amount", 0))
-        elif t == "xp_gain":
-            self.add_xp(p, int(pr.get("amount", 0)))
-        elif t == "star_up":
-            ok = self._skill_star_up(p, int(pr.get("count", 1)))
-        elif t == "summon":
-            ok = self._skill_summon(p, int(pr.get("tier", 4)), int(pr.get("count", 1)))
-        elif t == "premium_shop":
-            self.roll_shop(p, min_cost=int(pr.get("min_cost", 3)))
-        elif t == "heal":
-            p.hp = min(max(p.hp, data.START_HP), p.hp + int(pr.get("amount", 0)))
-        elif t == "extra_slot":
-            p.extra_slots += int(pr.get("amount", 1))
-        elif t == "battle_buff":
-            p.buff = {"atk_pct": pr.get("atk_pct", 0), "hp_pct": pr.get("hp_pct", 0),
-                      "rounds": int(pr.get("rounds", 1))}
-        if not ok:
+        if not self.apply_effect(p, t, pr, "buff"):
             return False
         if c["cost_type"] == "gold":
             p.gold -= c["cost"]
@@ -151,6 +138,100 @@ class Game:
         if not p.is_ai:
             p.say(f"{c['name']}の「{c['skill_name']}」発動！")
         self.add_log(f"{p.name}：{c['skill_name']}")
+        return True
+
+    def apply_effect(self, p, t, pr, buff_slot):
+        """コントローラーのスキルとアイテムで共通の効果。できなければ False（支払いもしない）"""
+        if t in ("gold_gain", "gold"):
+            p.gold += int(pr.get("amount", 0))
+        elif t in ("xp_gain", "xp"):
+            if p.level >= MAX_LEVEL:
+                p.say("もう最大レベルです")
+                return False
+            self.add_xp(p, int(pr.get("amount", 0)))
+        elif t == "star_up":
+            return self._skill_star_up(p, int(pr.get("count", 1)))
+        elif t == "summon":
+            return self._skill_summon(p, int(pr.get("tier", 4)), int(pr.get("count", 1)))
+        elif t == "premium_shop":
+            self.roll_shop(p, min_cost=int(pr.get("min_cost", 3)))
+        elif t == "reroll":
+            self.roll_shop(p)
+        elif t == "heal":
+            if p.hp >= data.START_HP:
+                p.say("体力は満タンです")
+                return False
+            p.hp = min(max(p.hp, data.START_HP), p.hp + int(pr.get("amount", 0)))
+        elif t == "extra_slot":
+            p.extra_slots += int(pr.get("amount", 1))
+        elif t == "duplicate":
+            return self._item_duplicate(p)
+        elif t == "battle_buff":
+            setattr(p, buff_slot, {"atk_pct": pr.get("atk_pct", 0), "hp_pct": pr.get("hp_pct", 0),
+                                   "rounds": int(pr.get("rounds", 1))})
+        else:
+            return False
+        return True
+
+    def _item_duplicate(self, p):
+        cands = [u for loc, u in self.iter_units(p) if u[1] == 1]
+        if not cands:
+            p.say("★1のユニットがいません")
+            return False
+        free = next((i for i in range(BENCH_SIZE) if p.bench[i] is None), None)
+        if free is None:
+            p.say("ベンチがいっぱいです（売却して空けてください）")
+            return False
+        uid = max(cands, key=lambda u: UNITS[u[0]]["cost"])[0]
+        self.pool[uid] = max(0, self.pool[uid] - 1)
+        p.bench[free] = [uid, 1]
+        self.try_combine(p, uid)
+        return True
+
+    # ---------- アイテム ----------
+    def roll_item(self):
+        items = list(data.ITEMS.values())
+        total = sum(max(0.0, it["weight"]) for it in items)
+        if not items or total <= 0:
+            return None
+        x = self.rng.random() * total
+        for it in items:
+            x -= max(0.0, it["weight"])
+            if x < 0:
+                return it["id"]
+        return items[-1]["id"]
+
+    def give_item(self, p, reason, n=1):
+        for _ in range(int(n)):
+            iid = self.roll_item()
+            if iid is None:
+                return
+            it = data.ITEMS[iid]
+            if len(p.items) >= int(data.ITEM_DROPS.get("max_items", 6)):
+                g = int(data.ITEM_DROPS.get("full_gold", 2))
+                p.gold += g
+                p.item_notes.append(f"アイテムがいっぱいなので「{it['name']}」を{g}Gに換えました")
+                continue
+            p.items.append(iid)
+            p.item_seq += 1
+            p.item_notes.append(f"アイテム「{it['name']}」を手に入れた！（{reason}）")
+
+    def use_item(self, p, slot):
+        if self.phase != "planning":
+            p.say("アイテムは準備フェーズで使えます")
+            return False
+        if not (0 <= slot < len(p.items)):
+            return False
+        it = data.ITEMS.get(p.items[slot])
+        if it is None:
+            p.items.pop(slot)
+            return False
+        if not self.apply_effect(p, it["type"], it["params"], "item_buff"):
+            return False
+        p.items.pop(slot)
+        p.item_used_seq += 1
+        if not p.is_ai:
+            p.say(f"「{it['name']}」を使った！")
         return True
 
     def _skill_star_up(self, p, count):
@@ -408,6 +489,8 @@ class Game:
                 self.pick_controller(p, str(a["id"]))
             elif t == "skill":
                 self.use_skill(p)
+            elif t == "item":
+                self.use_item(p, int(a["slot"]))
         except (KeyError, ValueError, IndexError, TypeError):
             pass
 
@@ -427,6 +510,9 @@ class Game:
         for p in self.players:
             if not p.alive:
                 continue
+            if p.item_notes:
+                p.last_result = (p.last_result + "　" if p.last_result else "") + " / ".join(p.item_notes)
+                p.item_notes = []
             self.income(p)
             if self.round > 1:
                 self.add_xp(p, 2)
@@ -454,9 +540,17 @@ class Game:
 
     @staticmethod
     def _buff_of(p):
-        if p is None or not p.buff or p.buff.get("rounds", 0) <= 0:
+        """コントローラーとアイテムの強化を合計する"""
+        if p is None:
             return None
-        return {"atk_pct": p.buff["atk_pct"], "hp_pct": p.buff["hp_pct"]}
+        atk = hp = 0.0
+        for b in (p.buff, p.item_buff):
+            if b and b.get("rounds", 0) > 0:
+                atk += float(b["atk_pct"])
+                hp += float(b["hp_pct"])
+        if not atk and not hp:
+            return None
+        return {"atk_pct": atk, "hp_pct": hp}
 
     def make_setup(self, pa, b_pid, b_name, b_units, pb=None):
         self.cid += 1
@@ -519,16 +613,21 @@ class Game:
         base = stage_damage(self.round)
         for kind, a, b, res, setup in self.pending:
             w = res["winner"]
-            for p in ((a, b) if kind == "pvp" else (a,)):   # 錬金術師の強化は戦闘ごとに1回減る
-                if p.buff and p.buff.get("rounds", 0) > 0:
-                    p.buff["rounds"] -= 1
-                    if p.buff["rounds"] <= 0:
-                        p.buff = None
+            for p in ((a, b) if kind == "pvp" else (a,)):   # 戦闘強化は戦闘ごとに1回減る
+                for slot in ("buff", "item_buff"):
+                    bf = getattr(p, slot)
+                    if bf and bf.get("rounds", 0) > 0:
+                        bf["rounds"] -= 1
+                        if bf["rounds"] <= 0:
+                            setattr(p, slot, None)
             if kind == "pve":
                 if w == "a":
                     g = pve_reward(self.round)
                     a.gold += g
                     a.last_result = f"モンスターに勝利！ +{g}G"
+                    dr = data.ITEM_DROPS
+                    n = int(dr.get("pve_win", 1)) + (1 if self.rng.random() * 100 < dr.get("pve_bonus_chance", 0) else 0)
+                    self.give_item(a, "モンスター撃破", n)
                 else:
                     d = 1 + len(res["survivors"]["b"])
                     a.hp -= d
@@ -552,6 +651,15 @@ class Game:
                 a.last_opp = b.pid
                 if real_b:
                     b.last_opp = a.pid
+                # 連勝・連敗・負けたときのアイテム
+                every = int(data.ITEM_DROPS.get("streak_every", 3))
+                for p in ([a, b] if real_b else [a]):
+                    if every > 0 and p.win_streak and p.win_streak % every == 0:
+                        self.give_item(p, f"{p.win_streak}連勝ボーナス")
+                    elif every > 0 and p.loss_streak and p.loss_streak % every == 0:
+                        self.give_item(p, f"{p.loss_streak}連敗ボーナス")
+                    elif p.loss_streak and self.rng.random() * 100 < data.ITEM_DROPS.get("loss_chance", 0):
+                        self.give_item(p, "敗北のなぐさめ")
             # 盗賊ボーナス
             for p, key in ((a, "a"), (b, "b")):
                 if p is None or (key == "b" and kind != "pvp"):
@@ -612,10 +720,13 @@ class Game:
                    "toast_seq": p.toast_seq, "result": p.last_result,
                    "controller": p.controller, "ctrl_used": p.ctrl_used, "ctrl_seq": getattr(p, "ctrl_seq", 0),
                    "board_limit": self.board_limit(p), "skill_block": self.skill_block_reason(p),
-                   "buff_rounds": p.buff["rounds"] if p.buff else 0},
+                   "buff_rounds": p.buff["rounds"] if p.buff else 0,
+                   "items": list(p.items), "item_seq": p.item_seq,
+                   "item_buff_rounds": p.item_buff["rounds"] if p.item_buff else 0,
+                   "extra_slots": p.extra_slots},
             "players": [{"pid": q.pid, "name": q.name, "hp": q.hp, "level": q.level, "alive": q.alive,
                          "placement": q.placement, "ai": q.is_ai, "board": q.board,
-                         "controller": q.controller, "ctrl_used": q.ctrl_used}
+                         "controller": q.controller, "ctrl_used": q.ctrl_used, "items": len(q.items)}
                         for q in self.players],
             "combat": self.combats.get(pid) if self.phase == "combat" else None,
             "log": self.log[-6:],

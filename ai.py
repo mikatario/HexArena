@@ -93,8 +93,18 @@ def maybe_use_skill(g, p):
         g.use_skill(p)
 
 
+def use_items(g, p):
+    """アイテムは基本すぐ使う（回復薬は体力が減ってから）"""
+    for i in range(len(p.items) - 1, -1, -1):
+        it = data.ITEMS.get(p.items[i])
+        if it and it["type"] == "heal" and p.hp > data.START_HP - it["params"].get("amount", 10):
+            continue
+        g.use_item(p, i)
+
+
 def take_turn(g, p):
     maybe_use_skill(g, p)
+    use_items(g, p)
     reserve = reserve_for(g, p)
     tl = target_level(g.round, p)
     while p.level < tl and p.gold - 4 >= reserve and p.level < MAX_LEVEL:

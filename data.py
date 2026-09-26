@@ -16,7 +16,7 @@ import os
 import sys
 import urllib.request
 
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 GAME_TITLE = "ヘックス・アリーナ"
 REMOTE_URL = "https://raw.githubusercontent.com/mikatario/HexArena/main/unit_data.json"
 DATA_FILE = "unit_data.json"
@@ -82,6 +82,42 @@ CONTROLLER_TYPES = {
     "battle_buff": ("次の数回の戦闘で味方を強化", [("atk_pct", "攻撃力+%"), ("hp_pct", "最大HP+%"),
                                                  ("rounds", "続く戦闘の回数")]),
 }
+# ---------- アイテム（消耗品。準備フェーズ中に使うとその場で効果が出る） ----------
+ITEM_TYPES = {
+    "gold": ("ゴールドを得る", [("amount", "もらえるゴールド")]),
+    "xp": ("経験値を得る", [("amount", "もらえる経験値")]),
+    "reroll": ("無料でショップを引き直す", []),
+    "heal": ("体力を回復する（最大体力まで）", [("amount", "回復量")]),
+    "summon": ("ランダムなユニットをベンチにもらう", [("tier", "ユニットのコスト"), ("count", "体数")]),
+    "star_up": ("★1ユニットを★2にする", [("count", "強化する体数")]),
+    "duplicate": ("持っている★1ユニットのコピーをもらう", []),
+    "battle_buff": ("次の数回の戦闘で味方を強化", [("atk_pct", "攻撃力+%"), ("hp_pct", "最大HP+%"),
+                                                 ("rounds", "続く戦闘の回数")]),
+}
+DEFAULT_ITEMS = [
+    {"id": "gold_bag", "name": "金貨袋", "icon": "金", "color": "#e0b040", "type": "gold", "params": {"amount": 5},
+     "weight": 30, "desc": "すぐに{amount}ゴールドを得る"},
+    {"id": "treasure", "name": "宝箱", "icon": "宝", "color": "#d98a2b", "type": "gold", "params": {"amount": 12},
+     "weight": 6, "desc": "すぐに{amount}ゴールドを得る"},
+    {"id": "xp_book", "name": "知恵の書", "icon": "書", "color": "#4a8fe0", "type": "xp", "params": {"amount": 6},
+     "weight": 20, "desc": "すぐに経験値を{amount}得る"},
+    {"id": "reroll_card", "name": "引き直し札", "icon": "札", "color": "#6fb3c9", "type": "reroll", "params": {},
+     "weight": 22, "desc": "ゴールドを使わずにショップを引き直す"},
+    {"id": "potion", "name": "回復薬", "icon": "薬", "color": "#e05a6a", "type": "heal", "params": {"amount": 10},
+     "weight": 14, "desc": "体力を{amount}回復する（最大体力まで）"},
+    {"id": "summon_scroll", "name": "召喚の巻物", "icon": "巻", "color": "#9b6ad6", "type": "summon",
+     "params": {"tier": 3, "count": 1}, "weight": 12, "desc": "ランダムな{tier}コストユニットを{count}体ベンチにもらう"},
+    {"id": "growth_seed", "name": "成長の実", "icon": "実", "color": "#5fb85a", "type": "star_up",
+     "params": {"count": 1}, "weight": 4, "desc": "コストが一番高い★1ユニット{count}体を★2にする"},
+    {"id": "mirror", "name": "分身の鏡", "icon": "鏡", "color": "#a9b7cf", "type": "duplicate", "params": {},
+     "weight": 9, "desc": "持っている★1ユニット1体（一番コストが高いもの）のコピーをもらう"},
+    {"id": "war_drum", "name": "闘気の太鼓", "icon": "鼓", "color": "#c2553a", "type": "battle_buff",
+     "params": {"atk_pct": 20, "hp_pct": 0, "rounds": 1}, "weight": 12,
+     "desc": "次の{rounds}回の戦闘だけ味方全員の攻撃力+{atk_pct}%"},
+]
+DEFAULT_ITEM_DROPS = {"pve_win": 1, "pve_bonus_chance": 30, "streak_every": 3, "loss_chance": 20, "max_items": 6,
+                      "full_gold": 2}
+
 CONTROLLER_LOOKS = {"merchant": "商人", "sage": "賢者", "smith": "鍛冶師", "summoner": "召喚士", "seer": "占い師",
                     "guardian": "守護騎士", "strategist": "軍師", "alchemist": "錬金術師"}
 COST_TYPES = {"gold": "ゴールド", "hp": "体力"}
@@ -126,6 +162,8 @@ TRAITS = {}
 TRAIT_ORDER = {}
 CREEPS = {}
 CONTROLLERS = {}      # id -> コントローラー（並び順どおり）
+ITEMS = {}            # id -> アイテム
+ITEM_DROPS = dict(DEFAULT_ITEM_DROPS)
 SETTINGS = {"select_time": 25}
 CURRENT = {}          # いま使っているデータ（そのまま参加者に送る）
 DATA_SOURCE = ""      # 画面表示用：どこから読んだか
@@ -217,6 +255,25 @@ def validate(d):
                 _num((c.get("params") or {}).get(k), f"コントローラー「{nm}」の{_label}")
             if c["type"] == "summon" and int(float(c["params"]["tier"])) not in (1, 2, 3, 4, 5):
                 raise ValueError(f"コントローラー「{nm}」の呼ぶユニットのコストは1〜5にしてください")
+    items = d.get("items")
+    if items is not None:
+        iids = set()
+        for it in items:
+            nm = it.get("name") or it.get("id")
+            if not it.get("id") or it["id"] in iids:
+                raise ValueError(f"アイテム「{nm}」のIDが空か重複しています")
+            iids.add(it["id"])
+            if it.get("type") not in ITEM_TYPES:
+                raise ValueError(f"アイテム「{nm}」の効果の種類「{it.get('type')}」は使えません")
+            _num(it.get("weight", 1), f"アイテム「{nm}」の出やすさ")
+            for k, _label in ITEM_TYPES[it["type"]][1]:
+                _num((it.get("params") or {}).get(k), f"アイテム「{nm}」の{_label}")
+            if it["type"] == "summon" and int(float(it["params"]["tier"])) not in (1, 2, 3, 4, 5):
+                raise ValueError(f"アイテム「{nm}」の呼ぶユニットのコストは1〜5にしてください")
+        if items and sum(float(it.get("weight", 1)) for it in items) <= 0:
+            raise ValueError("アイテムの出やすさの合計が0です")
+    for k, v in (d.get("item_drops") or {}).items():
+        _num(v, f"アイテムのドロップ設定「{k}」")
 
 
 def apply(d, source=""):
@@ -282,6 +339,15 @@ def apply(d, source=""):
                                 "cost_type": c["cost_type"], "cost": int(float(c["cost"])),
                                 "min_round": int(float(c.get("min_round", 1))), "params": params,
                                 "desc": c.get("desc", "")}
+    ITEMS.clear()
+    for it in (d.get("items") if d.get("items") is not None else DEFAULT_ITEMS):
+        ITEMS[it["id"]] = {"id": it["id"], "name": it.get("name", it["id"]), "icon": (it.get("icon") or "？")[:1],
+                           "color": it.get("color") or "#9090a0", "type": it["type"],
+                           "params": {k: float(v) for k, v in (it.get("params") or {}).items()},
+                           "weight": float(it.get("weight", 1)), "desc": it.get("desc", "")}
+    ITEM_DROPS.clear()
+    ITEM_DROPS.update(DEFAULT_ITEM_DROPS)
+    ITEM_DROPS.update({k: float(v) for k, v in (d.get("item_drops") or {}).items()})
     SETTINGS["select_time"] = float(st.get("select_time", 25))
     CURRENT.clear()
     CURRENT.update(d)
@@ -407,6 +473,15 @@ def controller_desc(cid):
         return c["desc"].format(**vals)
     except (KeyError, ValueError, IndexError):
         return c["desc"]
+
+
+def item_desc(iid):
+    it = ITEMS[iid]
+    vals = {k: f"{v:g}" for k, v in it["params"].items()}
+    try:
+        return it["desc"].format(**vals)
+    except (KeyError, ValueError, IndexError):
+        return it["desc"]
 
 
 def controller_cost_text(cid):
