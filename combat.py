@@ -405,9 +405,10 @@ class CombatSim:
 
     # ---------- スキル ----------
     def cast(self, u):
-        ab = u.ability
-        if ab is None:
+        if u.ability is None:
             return
+        sk = ABILITIES[u.ability]
+        ab = sk["type"]
         t = self.t
         v = u.abval * self.eff_ap(u) / 100
         self.ev.append(("cast", u.idx, ab))
@@ -421,7 +422,7 @@ class CombatSim:
         elif ab == "stun":
             self.damage(u, tgt, v, "magic")
             if tgt.alive:
-                self.stun(tgt, ABILITIES["stun"]["dur"])
+                self.stun(tgt, sk["dur"])
         elif ab == "snipe":
             far, fd = None, -1
             for e in enemies:
@@ -479,7 +480,7 @@ class CombatSim:
             for e in near:
                 self.damage(u, e, v, "magic")
                 if e.alive:
-                    self.stun(e, ABILITIES["quake"]["dur"])
+                    self.stun(e, sk["dur"])
         elif ab == "buff_team":
             for a in allies:
                 a.atk_buffs.append((v, t + 5.0))

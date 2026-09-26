@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """ゲーム進行（ホスト側で動く本体。ひとり用もホスト扱い）"""
 import random
+import data
 from data import (UNITS, UNIT_IDS_BY_COST, POOL_SIZE, SHOP_ODDS, XP_TO_NEXT, MAX_LEVEL, BENCH_SIZE,
-                  SHOP_SIZE, BOARD_ROWS, BOARD_COLS, START_HP, ROW_PREF, COL_PREF, AI_NAMES,
+                  SHOP_SIZE, BOARD_ROWS, BOARD_COLS, ROW_PREF, COL_PREF, AI_NAMES,
                   TRAITS, compute_traits, sell_value, is_pve_round, pve_board, pve_reward, stage_damage)
 from combat import CombatSim
 import ai
@@ -15,7 +16,7 @@ class Player:
         self.pid = pid
         self.name = name
         self.is_ai = is_ai
-        self.hp = START_HP
+        self.hp = data.START_HP
         self.gold = 0
         self.level = 1
         self.xp = 0

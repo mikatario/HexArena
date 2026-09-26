@@ -1,0 +1,1992 @@
+{
+ "data_version": "初期値（2026-09-26）",
+ "settings": {
+  "start_hp": 100,
+  "star_mult": [
+   1.0,
+   1.8,
+   3.24
+  ],
+  "pool_size": {
+   "1": 29,
+   "2": 22,
+   "3": 18,
+   "4": 12,
+   "5": 10
+  },
+  "shop_odds": {
+   "1": [
+    100,
+    0,
+    0,
+    0,
+    0
+   ],
+   "2": [
+    100,
+    0,
+    0,
+    0,
+    0
+   ],
+   "3": [
+    75,
+    25,
+    0,
+    0,
+    0
+   ],
+   "4": [
+    55,
+    30,
+    15,
+    0,
+    0
+   ],
+   "5": [
+    45,
+    33,
+    20,
+    2,
+    0
+   ],
+   "6": [
+    30,
+    40,
+    25,
+    5,
+    0
+   ],
+   "7": [
+    19,
+    30,
+    35,
+    15,
+    1
+   ],
+   "8": [
+    18,
+    25,
+    32,
+    22,
+    3
+   ],
+   "9": [
+    10,
+    20,
+    25,
+    35,
+    10
+   ],
+   "10": [
+    5,
+    10,
+    20,
+    40,
+    25
+   ]
+  },
+  "xp_to_next": {
+   "1": 2,
+   "2": 2,
+   "3": 6,
+   "4": 10,
+   "5": 20,
+   "6": 36,
+   "7": 48,
+   "8": 72,
+   "9": 84
+  }
+ },
+ "skills": [
+  {
+   "id": "strike",
+   "name": "一撃",
+   "type": "strike",
+   "mana": 50,
+   "power": 180,
+   "dur": 0
+  },
+  {
+   "id": "stun",
+   "name": "封じ",
+   "type": "stun",
+   "mana": 70,
+   "power": 130,
+   "dur": 1.5
+  },
+  {
+   "id": "snipe",
+   "name": "狙い撃ち",
+   "type": "snipe",
+   "mana": 60,
+   "power": 120,
+   "dur": 0
+  },
+  {
+   "id": "leap",
+   "name": "影跳び",
+   "type": "leap",
+   "mana": 50,
+   "power": 160,
+   "dur": 0
+  },
+  {
+   "id": "heal",
+   "name": "癒やし",
+   "type": "heal",
+   "mana": 60,
+   "power": 220,
+   "dur": 0
+  },
+  {
+   "id": "aura_heal",
+   "name": "祝福",
+   "type": "aura_heal",
+   "mana": 80,
+   "power": 90,
+   "dur": 0
+  },
+  {
+   "id": "shield",
+   "name": "守りの構え",
+   "type": "shield",
+   "mana": 60,
+   "power": 260,
+   "dur": 0
+  },
+  {
+   "id": "taunt",
+   "name": "挑発",
+   "type": "taunt",
+   "mana": 70,
+   "power": 200,
+   "dur": 0
+  },
+  {
+   "id": "frenzy",
+   "name": "連撃",
+   "type": "frenzy",
+   "mana": 50,
+   "power": 50,
+   "dur": 0
+  },
+  {
+   "id": "multishot",
+   "name": "乱れ撃ち",
+   "type": "multishot",
+   "mana": 60,
+   "power": 80,
+   "dur": 0
+  },
+  {
+   "id": "drain",
+   "name": "吸収撃",
+   "type": "drain",
+   "mana": 60,
+   "power": 170,
+   "dur": 0
+  },
+  {
+   "id": "blast",
+   "name": "爆裂",
+   "type": "blast",
+   "mana": 70,
+   "power": 140,
+   "dur": 0
+  },
+  {
+   "id": "chain",
+   "name": "連鎖",
+   "type": "chain",
+   "mana": 70,
+   "power": 150,
+   "dur": 0
+  },
+  {
+   "id": "quake",
+   "name": "震撃",
+   "type": "quake",
+   "mana": 80,
+   "power": 110,
+   "dur": 1.0
+  },
+  {
+   "id": "buff_team",
+   "name": "鼓舞",
+   "type": "buff_team",
+   "mana": 80,
+   "power": 25,
+   "dur": 0
+  },
+  {
+   "id": "meteor",
+   "name": "大災",
+   "type": "meteor",
+   "mana": 90,
+   "power": 220,
+   "dur": 0
+  }
+ ],
+ "traits": [
+  {
+   "name": "炎",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "burn": [
+     1.0,
+     2.0,
+     3.5
+    ]
+   },
+   "desc": "攻撃した敵を3秒やけど（毎秒 最大HPの{burn}%）",
+   "thresholds": []
+  },
+  {
+   "name": "氷",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "chill": [
+     20,
+     35,
+     50
+    ]
+   },
+   "desc": "攻撃した敵の攻撃速度を2秒間 -{chill}%",
+   "thresholds": []
+  },
+  {
+   "name": "雷",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "proc": [
+     60,
+     120,
+     220
+    ]
+   },
+   "desc": "攻撃時25%で雷撃：敵2体に{proc}の魔法ダメージ",
+   "thresholds": []
+  },
+  {
+   "name": "森",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "regen_pct": [
+     1.0,
+     2.0,
+     3.5
+    ]
+   },
+   "desc": "毎秒 最大HPの{regen_pct}%回復",
+   "thresholds": []
+  },
+  {
+   "name": "闇",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "dmg_amp": [
+     15,
+     30,
+     50
+    ]
+   },
+   "desc": "与えるダメージ +{dmg_amp}%",
+   "thresholds": []
+  },
+  {
+   "name": "光",
+   "kind": "属性",
+   "scope": "team",
+   "stats": {
+    "omnivamp": [
+     8,
+     15,
+     25
+    ]
+   },
+   "desc": "味方全員が与ダメージの{omnivamp}%回復",
+   "thresholds": []
+  },
+  {
+   "name": "鋼",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "dmg_red": [
+     15,
+     25,
+     40
+    ]
+   },
+   "desc": "受けるダメージ -{dmg_red}%",
+   "thresholds": []
+  },
+  {
+   "name": "砂",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "dodge": [
+     15,
+     25,
+     40
+    ]
+   },
+   "desc": "{dodge}%の確率で通常攻撃を回避",
+   "thresholds": []
+  },
+  {
+   "name": "海",
+   "kind": "属性",
+   "scope": "team",
+   "stats": {
+    "mana_regen": [
+     2,
+     4,
+     7
+    ]
+   },
+   "desc": "味方全員が毎秒マナを{mana_regen}回復",
+   "thresholds": []
+  },
+  {
+   "name": "獣",
+   "kind": "属性",
+   "scope": "team",
+   "stats": {
+    "atk_pct": [
+     10,
+     20,
+     35
+    ]
+   },
+   "desc": "味方全員の攻撃力 +{atk_pct}%",
+   "thresholds": []
+  },
+  {
+   "name": "毒",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "poison": [
+     20,
+     40,
+     70
+    ]
+   },
+   "desc": "攻撃した敵に3秒の毒（毎秒{poison}ダメージ）",
+   "thresholds": []
+  },
+  {
+   "name": "風",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "as_pct": [
+     20,
+     40,
+     70
+    ]
+   },
+   "desc": "攻撃速度 +{as_pct}%",
+   "thresholds": []
+  },
+  {
+   "name": "岩",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "armor": [
+     30,
+     60,
+     100
+    ]
+   },
+   "desc": "物理防御 +{armor}",
+   "thresholds": []
+  },
+  {
+   "name": "桜",
+   "kind": "属性",
+   "scope": "team",
+   "stats": {
+    "hp_flat": [
+     80,
+     160,
+     280
+    ]
+   },
+   "desc": "味方全員の最大HP +{hp_flat}",
+   "thresholds": []
+  },
+  {
+   "name": "竜",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "hp_pct": [
+     25,
+     50,
+     80
+    ],
+    "mr": [
+     20,
+     40,
+     70
+    ]
+   },
+   "desc": "最大HP +{hp_pct}%・魔法防御 +{mr}",
+   "thresholds": []
+  },
+  {
+   "name": "機械",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "shield_pct": [
+     20,
+     35,
+     55
+    ]
+   },
+   "desc": "開始時に最大HPの{shield_pct}%のシールド",
+   "thresholds": []
+  },
+  {
+   "name": "亡霊",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "revive": [
+     25,
+     40,
+     60
+    ]
+   },
+   "desc": "一度だけHP{revive}%で復活",
+   "thresholds": []
+  },
+  {
+   "name": "星",
+   "kind": "属性",
+   "scope": "self",
+   "stats": {
+    "ap": [
+     20,
+     40,
+     70
+    ]
+   },
+   "desc": "スキル威力 +{ap}",
+   "thresholds": []
+  },
+  {
+   "name": "戦士",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "atk_pct": [
+     15,
+     30,
+     50
+    ]
+   },
+   "desc": "攻撃力 +{atk_pct}%",
+   "thresholds": []
+  },
+  {
+   "name": "騎士",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "block": [
+     12,
+     22,
+     35
+    ]
+   },
+   "desc": "受ける通常攻撃ダメージを{block}軽減",
+   "thresholds": []
+  },
+  {
+   "name": "狙撃手",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "crit": [
+     15,
+     30,
+     50
+    ]
+   },
+   "desc": "会心率 +{crit}%",
+   "thresholds": []
+  },
+  {
+   "name": "魔術師",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "ap": [
+     25,
+     50,
+     85
+    ]
+   },
+   "desc": "スキル威力 +{ap}",
+   "thresholds": []
+  },
+  {
+   "name": "暗殺者",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "leap": [
+     1,
+     1,
+     1
+    ],
+    "crit": [
+     10,
+     20,
+     35
+    ],
+    "crit_dmg": [
+     20,
+     40,
+     70
+    ]
+   },
+   "desc": "開始時に敵の後列へ跳ぶ。会心率 +{crit}%・会心ダメージ +{crit_dmg}%",
+   "thresholds": []
+  },
+  {
+   "name": "守護者",
+   "kind": "職業",
+   "scope": "team",
+   "stats": {
+    "shield_flat": [
+     100,
+     200,
+     350
+    ]
+   },
+   "desc": "味方全員が開始時に{shield_flat}のシールド",
+   "thresholds": []
+  },
+  {
+   "name": "聖職者",
+   "kind": "職業",
+   "scope": "team",
+   "stats": {
+    "regen_flat": [
+     8,
+     16,
+     30
+    ]
+   },
+   "desc": "味方全員が毎秒{regen_flat}回復",
+   "thresholds": []
+  },
+  {
+   "name": "狂戦士",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "splash": [
+     25,
+     45,
+     70
+    ]
+   },
+   "desc": "通常攻撃が周囲の敵にも{splash}%のダメージ",
+   "thresholds": []
+  },
+  {
+   "name": "呪術師",
+   "kind": "職業",
+   "scope": "enemy",
+   "stats": {
+    "armor": [
+     -15,
+     -30,
+     -50
+    ],
+    "mr": [
+     -15,
+     -30,
+     -50
+    ]
+   },
+   "desc": "敵全員の物理・魔法防御 {armor}",
+   "thresholds": []
+  },
+  {
+   "name": "槍兵",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "armor_pen": [
+     25,
+     45,
+     70
+    ]
+   },
+   "desc": "敵の物理防御を{armor_pen}%無視",
+   "thresholds": []
+  },
+  {
+   "name": "拳闘士",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "hp_pct": [
+     30,
+     60,
+     100
+    ]
+   },
+   "desc": "最大HP +{hp_pct}%",
+   "thresholds": []
+  },
+  {
+   "name": "決闘者",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "stack_as": [
+     4,
+     7,
+     11
+    ]
+   },
+   "desc": "攻撃するたび攻撃速度 +{stack_as}%（最大8回）",
+   "thresholds": []
+  },
+  {
+   "name": "吟遊詩人",
+   "kind": "職業",
+   "scope": "team",
+   "stats": {
+    "mana_start": [
+     15,
+     30,
+     50
+    ]
+   },
+   "desc": "味方全員の開始時マナ +{mana_start}",
+   "thresholds": []
+  },
+  {
+   "name": "盗賊",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "gold": [
+     1,
+     2,
+     3
+    ],
+    "dodge": [
+     10,
+     10,
+     10
+    ]
+   },
+   "desc": "戦闘後に{gold}ゴールド獲得・回避 +{dodge}%",
+   "thresholds": []
+  },
+  {
+   "name": "重装兵",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "thorns": [
+     15,
+     30,
+     50
+    ]
+   },
+   "desc": "受けた通常攻撃の{thorns}%を反射",
+   "thresholds": []
+  },
+  {
+   "name": "忍者",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "atk_pct": [
+     18,
+     35,
+     60
+    ],
+    "ap": [
+     18,
+     35,
+     60
+    ]
+   },
+   "desc": "攻撃力 +{atk_pct}%・スキル威力 +{ap}",
+   "thresholds": []
+  },
+  {
+   "name": "錬金術師",
+   "kind": "職業",
+   "scope": "self",
+   "stats": {
+    "mana_on_hit": [
+     5,
+     10,
+     18
+    ]
+   },
+   "desc": "通常攻撃で得るマナ +{mana_on_hit}",
+   "thresholds": []
+  },
+  {
+   "name": "君主",
+   "kind": "職業",
+   "scope": "team",
+   "stats": {
+    "atk_pct": [
+     5,
+     10,
+     18
+    ],
+    "ap": [
+     5,
+     10,
+     18
+    ],
+    "hp_pct": [
+     5,
+     10,
+     18
+    ]
+   },
+   "desc": "味方全員の攻撃力・スキル威力・最大HP +{hp_pct}%",
+   "thresholds": []
+  }
+ ],
+ "units": [
+  {
+   "id": "u01",
+   "name": "ホムラ",
+   "cost": 1,
+   "element": "炎",
+   "classes": [
+    "戦士"
+   ],
+   "type": "bruiser",
+   "skill": "strike",
+   "skill_name": "",
+   "look": "warrior",
+   "hp": 640,
+   "atk": 55,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u02",
+   "name": "ユキメ",
+   "cost": 1,
+   "element": "氷",
+   "classes": [
+    "魔術師"
+   ],
+   "type": "caster",
+   "skill": "stun",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 500,
+   "atk": 38,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u03",
+   "name": "ライガ",
+   "cost": 1,
+   "element": "雷",
+   "classes": [
+    "狙撃手"
+   ],
+   "type": "sniper",
+   "skill": "snipe",
+   "skill_name": "",
+   "look": "archer",
+   "hp": 500,
+   "atk": 55,
+   "as": 0.75,
+   "armor": 15,
+   "mr": 15,
+   "rng": 4
+  },
+  {
+   "id": "u04",
+   "name": "モリオ",
+   "cost": 1,
+   "element": "森",
+   "classes": [
+    "騎士"
+   ],
+   "type": "tank",
+   "skill": "shield",
+   "skill_name": "",
+   "look": "knight",
+   "hp": 720,
+   "atk": 45,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u05",
+   "name": "カゲロウ",
+   "cost": 1,
+   "element": "闇",
+   "classes": [
+    "暗殺者"
+   ],
+   "type": "assassin",
+   "skill": "leap",
+   "skill_name": "",
+   "look": "assassin",
+   "hp": 540,
+   "atk": 62,
+   "as": 0.8,
+   "armor": 22,
+   "mr": 22,
+   "rng": 1
+  },
+  {
+   "id": "u06",
+   "name": "ヒカリ",
+   "cost": 1,
+   "element": "光",
+   "classes": [
+    "聖職者"
+   ],
+   "type": "caster",
+   "skill": "heal",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 500,
+   "atk": 38,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u07",
+   "name": "テツ",
+   "cost": 1,
+   "element": "鋼",
+   "classes": [
+    "重装兵"
+   ],
+   "type": "tank",
+   "skill": "taunt",
+   "skill_name": "",
+   "look": "knight",
+   "hp": 720,
+   "atk": 45,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u08",
+   "name": "サジン",
+   "cost": 1,
+   "element": "砂",
+   "classes": [
+    "盗賊"
+   ],
+   "type": "assassin",
+   "skill": "strike",
+   "skill_name": "",
+   "look": "assassin",
+   "hp": 540,
+   "atk": 62,
+   "as": 0.8,
+   "armor": 22,
+   "mr": 22,
+   "rng": 1
+  },
+  {
+   "id": "u09",
+   "name": "ナミ",
+   "cost": 1,
+   "element": "海",
+   "classes": [
+    "吟遊詩人"
+   ],
+   "type": "caster",
+   "skill": "aura_heal",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 500,
+   "atk": 38,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u10",
+   "name": "キバ",
+   "cost": 1,
+   "element": "獣",
+   "classes": [
+    "拳闘士"
+   ],
+   "type": "tank",
+   "skill": "drain",
+   "skill_name": "",
+   "look": "beast",
+   "hp": 720,
+   "atk": 45,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u11",
+   "name": "ドクロ",
+   "cost": 1,
+   "element": "毒",
+   "classes": [
+    "呪術師",
+    "錬金術師"
+   ],
+   "type": "caster",
+   "skill": "blast",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 500,
+   "atk": 38,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u12",
+   "name": "ハヤテ",
+   "cost": 1,
+   "element": "風",
+   "classes": [
+    "決闘者",
+    "忍者"
+   ],
+   "type": "bruiser",
+   "skill": "frenzy",
+   "skill_name": "",
+   "look": "warrior",
+   "hp": 640,
+   "atk": 55,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u13",
+   "name": "ガンテツ",
+   "cost": 1,
+   "element": "岩",
+   "classes": [
+    "守護者"
+   ],
+   "type": "tank",
+   "skill": "shield",
+   "skill_name": "",
+   "look": "knight",
+   "hp": 720,
+   "atk": 45,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u14",
+   "name": "サクラ",
+   "cost": 1,
+   "element": "桜",
+   "classes": [
+    "狙撃手",
+    "吟遊詩人"
+   ],
+   "type": "sniper",
+   "skill": "multishot",
+   "skill_name": "",
+   "look": "archer",
+   "hp": 500,
+   "atk": 55,
+   "as": 0.75,
+   "armor": 15,
+   "mr": 15,
+   "rng": 4
+  },
+  {
+   "id": "u15",
+   "name": "エンジ",
+   "cost": 2,
+   "element": "炎",
+   "classes": [
+    "狂戦士",
+    "戦士"
+   ],
+   "type": "bruiser",
+   "skill": "drain",
+   "skill_name": "",
+   "look": "warrior",
+   "hp": 768,
+   "atk": 63.25,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u16",
+   "name": "ツララ",
+   "cost": 2,
+   "element": "氷",
+   "classes": [
+    "守護者"
+   ],
+   "type": "tank",
+   "skill": "taunt",
+   "skill_name": "",
+   "look": "knight",
+   "hp": 864,
+   "atk": 51.75,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u17",
+   "name": "イナズマ",
+   "cost": 2,
+   "element": "雷",
+   "classes": [
+    "忍者"
+   ],
+   "type": "assassin",
+   "skill": "leap",
+   "skill_name": "",
+   "look": "assassin",
+   "hp": 648,
+   "atk": 71.3,
+   "as": 0.8,
+   "armor": 22,
+   "mr": 22,
+   "rng": 1
+  },
+  {
+   "id": "u18",
+   "name": "コダマ",
+   "cost": 2,
+   "element": "森",
+   "classes": [
+    "聖職者"
+   ],
+   "type": "caster",
+   "skill": "aura_heal",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 600,
+   "atk": 43.7,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u19",
+   "name": "ヨミ",
+   "cost": 2,
+   "element": "亡霊",
+   "classes": [
+    "呪術師"
+   ],
+   "type": "caster",
+   "skill": "chain",
+   "skill_name": "",
+   "look": "ghost",
+   "hp": 600,
+   "atk": 43.7,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u20",
+   "name": "ルクス",
+   "cost": 2,
+   "element": "光",
+   "classes": [
+    "騎士",
+    "槍兵"
+   ],
+   "type": "tank",
+   "skill": "shield",
+   "skill_name": "",
+   "look": "knight",
+   "hp": 864,
+   "atk": 51.75,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u21",
+   "name": "ハガネ",
+   "cost": 2,
+   "element": "鋼",
+   "classes": [
+    "槍兵"
+   ],
+   "type": "lancer",
+   "skill": "strike",
+   "skill_name": "",
+   "look": "lancer",
+   "hp": 720,
+   "atk": 63.25,
+   "as": 0.7,
+   "armor": 25,
+   "mr": 25,
+   "rng": 2
+  },
+  {
+   "id": "u22",
+   "name": "スナオ",
+   "cost": 2,
+   "element": "砂",
+   "classes": [
+    "暗殺者",
+    "盗賊"
+   ],
+   "type": "assassin",
+   "skill": "leap",
+   "skill_name": "",
+   "look": "assassin",
+   "hp": 648,
+   "atk": 71.3,
+   "as": 0.8,
+   "armor": 22,
+   "mr": 22,
+   "rng": 1
+  },
+  {
+   "id": "u23",
+   "name": "カイリ",
+   "cost": 2,
+   "element": "海",
+   "classes": [
+    "狙撃手"
+   ],
+   "type": "sniper",
+   "skill": "snipe",
+   "skill_name": "",
+   "look": "archer",
+   "hp": 600,
+   "atk": 63.25,
+   "as": 0.75,
+   "armor": 15,
+   "mr": 15,
+   "rng": 4
+  },
+  {
+   "id": "u24",
+   "name": "ギア",
+   "cost": 2,
+   "element": "機械",
+   "classes": [
+    "重装兵"
+   ],
+   "type": "tank",
+   "skill": "taunt",
+   "skill_name": "",
+   "look": "robot",
+   "hp": 864,
+   "atk": 51.75,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u25",
+   "name": "ホシミ",
+   "cost": 2,
+   "element": "星",
+   "classes": [
+    "魔術師"
+   ],
+   "type": "caster",
+   "skill": "blast",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 600,
+   "atk": 43.7,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u26",
+   "name": "ウルフ",
+   "cost": 2,
+   "element": "獣",
+   "classes": [
+    "戦士"
+   ],
+   "type": "bruiser",
+   "skill": "frenzy",
+   "skill_name": "",
+   "look": "beast",
+   "hp": 768,
+   "atk": 63.25,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u27",
+   "name": "ミドリ",
+   "cost": 2,
+   "element": "毒",
+   "classes": [
+    "錬金術師"
+   ],
+   "type": "caster",
+   "skill": "blast",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 600,
+   "atk": 43.7,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u28",
+   "name": "カグラ",
+   "cost": 3,
+   "element": "炎",
+   "classes": [
+    "魔術師"
+   ],
+   "type": "caster",
+   "skill": "blast",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 700,
+   "atk": 49.4,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u29",
+   "name": "フブキ",
+   "cost": 3,
+   "element": "氷",
+   "classes": [
+    "狙撃手"
+   ],
+   "type": "sniper",
+   "skill": "multishot",
+   "skill_name": "",
+   "look": "archer",
+   "hp": 700,
+   "atk": 71.5,
+   "as": 0.75,
+   "armor": 15,
+   "mr": 15,
+   "rng": 4
+  },
+  {
+   "id": "u30",
+   "name": "ゴロウ",
+   "cost": 3,
+   "element": "雷",
+   "classes": [
+    "拳闘士",
+    "重装兵"
+   ],
+   "type": "tank",
+   "skill": "quake",
+   "skill_name": "",
+   "look": "knight",
+   "hp": 1008,
+   "atk": 58.5,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u31",
+   "name": "ツバキ",
+   "cost": 3,
+   "element": "森",
+   "classes": [
+    "決闘者"
+   ],
+   "type": "bruiser",
+   "skill": "frenzy",
+   "skill_name": "",
+   "look": "warrior",
+   "hp": 896,
+   "atk": 71.5,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u32",
+   "name": "クロウ",
+   "cost": 3,
+   "element": "闇",
+   "classes": [
+    "忍者"
+   ],
+   "type": "assassin",
+   "skill": "leap",
+   "skill_name": "",
+   "look": "assassin",
+   "hp": 756,
+   "atk": 80.6,
+   "as": 0.8,
+   "armor": 22,
+   "mr": 22,
+   "rng": 1
+  },
+  {
+   "id": "u33",
+   "name": "セラ",
+   "cost": 3,
+   "element": "光",
+   "classes": [
+    "吟遊詩人"
+   ],
+   "type": "caster",
+   "skill": "buff_team",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 700,
+   "atk": 49.4,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u34",
+   "name": "イワオ",
+   "cost": 3,
+   "element": "岩",
+   "classes": [
+    "騎士"
+   ],
+   "type": "tank",
+   "skill": "quake",
+   "skill_name": "",
+   "look": "knight",
+   "hp": 1008,
+   "atk": 58.5,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u35",
+   "name": "タツミ",
+   "cost": 3,
+   "element": "竜",
+   "classes": [
+    "戦士",
+    "拳闘士"
+   ],
+   "type": "bruiser",
+   "skill": "drain",
+   "skill_name": "",
+   "look": "dragonkin",
+   "hp": 896,
+   "atk": 71.5,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u36",
+   "name": "メカノ",
+   "cost": 3,
+   "element": "機械",
+   "classes": [
+    "錬金術師"
+   ],
+   "type": "caster",
+   "skill": "chain",
+   "skill_name": "",
+   "look": "robot",
+   "hp": 700,
+   "atk": 49.4,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u37",
+   "name": "レイス",
+   "cost": 3,
+   "element": "亡霊",
+   "classes": [
+    "暗殺者"
+   ],
+   "type": "assassin",
+   "skill": "leap",
+   "skill_name": "",
+   "look": "ghost",
+   "hp": 756,
+   "atk": 80.6,
+   "as": 0.8,
+   "armor": 22,
+   "mr": 22,
+   "rng": 1
+  },
+  {
+   "id": "u38",
+   "name": "ミナト",
+   "cost": 3,
+   "element": "海",
+   "classes": [
+    "呪術師"
+   ],
+   "type": "caster",
+   "skill": "stun",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 700,
+   "atk": 49.4,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u39",
+   "name": "シエル",
+   "cost": 3,
+   "element": "風",
+   "classes": [
+    "狙撃手"
+   ],
+   "type": "sniper",
+   "skill": "snipe",
+   "skill_name": "",
+   "look": "archer",
+   "hp": 700,
+   "atk": 71.5,
+   "as": 0.75,
+   "armor": 15,
+   "mr": 15,
+   "rng": 4
+  },
+  {
+   "id": "u40",
+   "name": "ソウマ",
+   "cost": 3,
+   "element": "桜",
+   "classes": [
+    "槍兵"
+   ],
+   "type": "lancer",
+   "skill": "strike",
+   "skill_name": "",
+   "look": "lancer",
+   "hp": 840,
+   "atk": 71.5,
+   "as": 0.7,
+   "armor": 25,
+   "mr": 25,
+   "rng": 2
+  },
+  {
+   "id": "u41",
+   "name": "イグニス",
+   "cost": 4,
+   "element": "炎",
+   "classes": [
+    "狂戦士",
+    "戦士"
+   ],
+   "type": "bruiser",
+   "skill": "quake",
+   "skill_name": "",
+   "look": "warrior",
+   "hp": 1024,
+   "atk": 79.75,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u42",
+   "name": "セツナ",
+   "cost": 4,
+   "element": "氷",
+   "classes": [
+    "魔術師"
+   ],
+   "type": "caster",
+   "skill": "blast",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 800,
+   "atk": 55.1,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u43",
+   "name": "イカヅチ",
+   "cost": 4,
+   "element": "雷",
+   "classes": [
+    "魔術師"
+   ],
+   "type": "caster",
+   "skill": "chain",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 800,
+   "atk": 55.1,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u44",
+   "name": "オウカ",
+   "cost": 4,
+   "element": "桜",
+   "classes": [
+    "聖職者"
+   ],
+   "type": "caster",
+   "skill": "aura_heal",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 800,
+   "atk": 55.1,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u45",
+   "name": "ヤミヒメ",
+   "cost": 4,
+   "element": "闇",
+   "classes": [
+    "呪術師"
+   ],
+   "type": "caster",
+   "skill": "meteor",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 800,
+   "atk": 55.1,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u46",
+   "name": "ダイチ",
+   "cost": 4,
+   "element": "岩",
+   "classes": [
+    "守護者",
+    "重装兵"
+   ],
+   "type": "tank",
+   "skill": "taunt",
+   "skill_name": "",
+   "look": "knight",
+   "hp": 1152,
+   "atk": 65.25,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u47",
+   "name": "ドラグ",
+   "cost": 4,
+   "element": "竜",
+   "classes": [
+    "騎士",
+    "拳闘士"
+   ],
+   "type": "tank",
+   "skill": "quake",
+   "skill_name": "",
+   "look": "dragonkin",
+   "hp": 1152,
+   "atk": 65.25,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u48",
+   "name": "マキナ",
+   "cost": 4,
+   "element": "機械",
+   "classes": [
+    "狙撃手",
+    "錬金術師"
+   ],
+   "type": "sniper",
+   "skill": "multishot",
+   "skill_name": "",
+   "look": "robot",
+   "hp": 800,
+   "atk": 79.75,
+   "as": 0.75,
+   "armor": 15,
+   "mr": 15,
+   "rng": 4
+  },
+  {
+   "id": "u49",
+   "name": "カスミ",
+   "cost": 4,
+   "element": "亡霊",
+   "classes": [
+    "忍者"
+   ],
+   "type": "assassin",
+   "skill": "leap",
+   "skill_name": "",
+   "look": "ghost",
+   "hp": 864,
+   "atk": 89.9,
+   "as": 0.8,
+   "armor": 22,
+   "mr": 22,
+   "rng": 1
+  },
+  {
+   "id": "u50",
+   "name": "シオン",
+   "cost": 4,
+   "element": "星",
+   "classes": [
+    "決闘者"
+   ],
+   "type": "bruiser",
+   "skill": "frenzy",
+   "skill_name": "",
+   "look": "warrior",
+   "hp": 1024,
+   "atk": 79.75,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u51",
+   "name": "ジャドク",
+   "cost": 4,
+   "element": "毒",
+   "classes": [
+    "暗殺者",
+    "盗賊"
+   ],
+   "type": "assassin",
+   "skill": "leap",
+   "skill_name": "",
+   "look": "assassin",
+   "hp": 864,
+   "atk": 89.9,
+   "as": 0.8,
+   "armor": 22,
+   "mr": 22,
+   "rng": 1
+  },
+  {
+   "id": "u52",
+   "name": "テンショウ",
+   "cost": 5,
+   "element": "光",
+   "classes": [
+    "君主"
+   ],
+   "type": "bruiser",
+   "skill": "buff_team",
+   "skill_name": "",
+   "look": "warrior",
+   "hp": 1152,
+   "atk": 88,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u53",
+   "name": "ワダツミ",
+   "cost": 5,
+   "element": "海",
+   "classes": [
+    "君主"
+   ],
+   "type": "bruiser",
+   "skill": "meteor",
+   "skill_name": "",
+   "look": "warrior",
+   "hp": 1152,
+   "atk": 88,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u54",
+   "name": "ガリュウ",
+   "cost": 5,
+   "element": "竜",
+   "classes": [
+    "魔術師",
+    "君主"
+   ],
+   "type": "caster",
+   "skill": "meteor",
+   "skill_name": "",
+   "look": "dragonkin",
+   "hp": 900,
+   "atk": 60.8,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u55",
+   "name": "ジンテツ",
+   "cost": 5,
+   "element": "鋼",
+   "classes": [
+    "守護者"
+   ],
+   "type": "tank",
+   "skill": "taunt",
+   "skill_name": "",
+   "look": "knight",
+   "hp": 1296,
+   "atk": 72,
+   "as": 0.6,
+   "armor": 40,
+   "mr": 35,
+   "rng": 1
+  },
+  {
+   "id": "u56",
+   "name": "ミカボシ",
+   "cost": 5,
+   "element": "星",
+   "classes": [
+    "狙撃手"
+   ],
+   "type": "sniper",
+   "skill": "snipe",
+   "skill_name": "",
+   "look": "archer",
+   "hp": 900,
+   "atk": 88,
+   "as": 0.75,
+   "armor": 15,
+   "mr": 15,
+   "rng": 4
+  },
+  {
+   "id": "u57",
+   "name": "シャムラ",
+   "cost": 5,
+   "element": "砂",
+   "classes": [
+    "暗殺者",
+    "決闘者"
+   ],
+   "type": "assassin",
+   "skill": "leap",
+   "skill_name": "",
+   "look": "assassin",
+   "hp": 972,
+   "atk": 99.2,
+   "as": 0.8,
+   "armor": 22,
+   "mr": 22,
+   "rng": 1
+  },
+  {
+   "id": "u58",
+   "name": "コガラシ",
+   "cost": 5,
+   "element": "風",
+   "classes": [
+    "吟遊詩人"
+   ],
+   "type": "caster",
+   "skill": "chain",
+   "skill_name": "",
+   "look": "mage",
+   "hp": 900,
+   "atk": 60.8,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  },
+  {
+   "id": "u59",
+   "name": "ヤマタ",
+   "cost": 5,
+   "element": "獣",
+   "classes": [
+    "狂戦士",
+    "拳闘士"
+   ],
+   "type": "bruiser",
+   "skill": "quake",
+   "skill_name": "",
+   "look": "beast",
+   "hp": 1152,
+   "atk": 88,
+   "as": 0.7,
+   "armor": 30,
+   "mr": 30,
+   "rng": 1
+  },
+  {
+   "id": "u60",
+   "name": "オボロ",
+   "cost": 5,
+   "element": "亡霊",
+   "classes": [
+    "聖職者"
+   ],
+   "type": "caster",
+   "skill": "aura_heal",
+   "skill_name": "",
+   "look": "ghost",
+   "hp": 900,
+   "atk": 60.8,
+   "as": 0.65,
+   "armor": 15,
+   "mr": 20,
+   "rng": 3
+  }
+ ],
+ "creeps": [
+  {
+   "id": "c1",
+   "look": "slime",
+   "name": "スライム",
+   "hp": 380,
+   "atk": 28,
+   "as": 0.6,
+   "armor": 10,
+   "mr": 10,
+   "rng": 1
+  },
+  {
+   "id": "c2",
+   "look": "goblin",
+   "name": "ゴブリン",
+   "hp": 480,
+   "atk": 36,
+   "as": 0.7,
+   "armor": 15,
+   "mr": 10,
+   "rng": 1
+  },
+  {
+   "id": "c3",
+   "look": "wolf",
+   "name": "オオカミ",
+   "hp": 620,
+   "atk": 48,
+   "as": 0.85,
+   "armor": 20,
+   "mr": 15,
+   "rng": 1
+  },
+  {
+   "id": "c4",
+   "look": "golem",
+   "name": "ゴーレム",
+   "hp": 1600,
+   "atk": 70,
+   "as": 0.55,
+   "armor": 60,
+   "mr": 40,
+   "rng": 1
+  },
+  {
+   "id": "c5",
+   "look": "dragon",
+   "name": "ドラゴン",
+   "hp": 3000,
+   "atk": 110,
+   "as": 0.7,
+   "armor": 50,
+   "mr": 50,
+   "rng": 2
+  }
+ ]
+}

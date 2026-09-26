@@ -1,0 +1,662 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ヘックス・アリーナ編集室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Dela+Gothic+One&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f6; --surface:#ffffff; --surface2:#f5f7fb; --line:#d6dce8; --ink:#1a2130; --sub:#5c6680;
+  --accent:#9a6b12; --accent-bg:#fbf1dc; --focus:#2f6fdb;
+  --ok:#1f8a4c; --ok-bg:#e3f5ea; --warn:#b3261e; --warn-bg:#fde8e6;
+  --c1:#8a8a99; --c2:#2f9e5d; --c3:#2f6fd0; --c4:#9a4fd0; --c5:#c79212;
+  --font:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;
+  --display:"Dela Gothic One","BIZ UDPGothic","Yu Gothic UI",sans-serif;
+  --mono:"JetBrains Mono","Consolas","BIZ UDPGothic",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#10141d; --surface:#171c28; --surface2:#1d2331; --line:#2c3446; --ink:#e6e9f1; --sub:#98a1b8;
+    --accent:#e8b54d; --accent-bg:#2e2616; --focus:#6ea1ff;
+    --ok:#5fd08e; --ok-bg:#15291e; --warn:#ff8a80; --warn-bg:#331a1a;
+    --c1:#a4a4b2; --c2:#4cc07d; --c3:#5b93ee; --c4:#b67ae6; --c5:#e8b54d;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#10141d; --surface:#171c28; --surface2:#1d2331; --line:#2c3446; --ink:#e6e9f1; --sub:#98a1b8;
+  --accent:#e8b54d; --accent-bg:#2e2616; --focus:#6ea1ff;
+  --ok:#5fd08e; --ok-bg:#15291e; --warn:#ff8a80; --warn-bg:#331a1a;
+  --c1:#a4a4b2; --c2:#4cc07d; --c3:#5b93ee; --c4:#b67ae6; --c5:#e8b54d;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55;padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:1400px;margin:0 auto}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 10px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.brand{display:flex;flex-direction:column;gap:2px;margin-right:auto}
+.brand h1{font-family:var(--display);font-weight:400;font-size:22px;letter-spacing:.02em;margin:0;text-wrap:balance}
+.brand .meta{color:var(--sub);font-size:12.5px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+button,.btn{font:inherit;font-size:13.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 12px;border-radius:7px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+button:hover,.btn:hover{border-color:var(--sub)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+:root[data-theme="dark"] button.primary{color:#1a1406}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) button.primary{color:#1a1406}}
+button:disabled{opacity:.45;cursor:default}
+button.danger{color:var(--warn)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-block:12px}
+.pill{font-size:12.5px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--sub)}
+.pill.ok{background:var(--ok-bg);border-color:transparent;color:var(--ok)}
+.pill.bad{background:var(--warn-bg);border-color:transparent;color:var(--warn);cursor:pointer}
+.pill.dirty{background:var(--accent-bg);border-color:transparent;color:var(--accent)}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:16px}
+nav.tabs button{border:none;border-bottom:3px solid transparent;border-radius:0;background:none;padding:9px 14px;color:var(--sub);font-weight:700}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs .count{font-family:var(--mono);font-weight:400;font-size:11.5px;color:var(--sub);margin-left:4px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:10px}
+.toolbar input[type=search]{min-width:0;width:220px;max-width:100%}
+.toolbar .hint{color:var(--sub);font-size:12.5px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:4px 6px;max-width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--focus);outline:none}
+input.num{font-family:var(--mono);font-variant-numeric:tabular-nums;width:74px;text-align:right}
+input.num.s{width:58px}
+input.bad,select.bad{border-color:var(--warn);background:var(--warn-bg)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
+th{position:sticky;top:0;background:var(--surface2);font-size:12px;color:var(--sub);font-weight:700;letter-spacing:.03em;z-index:1}
+tr:last-child td{border-bottom:none}
+td.pv{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--sub);font-size:12px}
+.cost{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.cost1{background:var(--c1)}.cost2{background:var(--c2)}.cost3{background:var(--c3)}.cost4{background:var(--c4)}.cost5{background:var(--c5)}
+.chips{display:flex;gap:4px;flex-wrap:nowrap;align-items:center}
+.chips select{width:48px}
+.chip{font-size:12px;padding:1px 8px;border-radius:99px;background:var(--surface2);border:1px solid var(--line);cursor:pointer}
+.chip:hover{border-color:var(--warn);color:var(--warn)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.card h3{margin:0;font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h3 .kind{font-size:11.5px;font-weight:400;color:var(--sub);border:1px solid var(--line);border-radius:99px;padding:0 8px}
+.row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.field{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--sub)}
+.tiers{font-size:12.5px;color:var(--ink);display:flex;flex-direction:column;gap:2px}
+.tiers b{font-family:var(--mono);color:var(--accent);font-weight:600;margin-right:6px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:14px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.panel h2{font-size:15px;margin:0 0 10px}
+.steps{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:10px;max-width:68ch}
+.steps code,.mono{font-family:var(--mono);font-size:12.5px;background:var(--surface2);padding:1px 5px;border-radius:4px}
+.errors{margin:0;padding-left:1.2em;color:var(--warn);max-height:220px;overflow:auto}
+.banner{border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.banner.info{background:var(--accent-bg);color:var(--ink)}
+.overlay{position:fixed;inset:0;background:rgba(10,12,18,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.dialog{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;width:min(720px,100%);display:flex;flex-direction:column;gap:12px}
+.dialog textarea{width:100%;height:240px;font-family:var(--mono);font-size:12px}
+.muted{color:var(--sub)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;z-index:30;font-size:13.5px;max-width:calc(100% - 32px)}
+.history li{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-block:4px;border-bottom:1px solid var(--line)}
+.history{list-style:none;margin:0;padding:0}
+@media (max-width:640px){.brand h1{font-size:19px}th,td{padding:4px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>ヘックス・アリーナ編集室</h1>
+      <div class="meta" id="meta">読み込み中…</div>
+    </div>
+    <div class="actions">
+      <button id="btnSave" class="primary" title="チーム共有の作業データとして保存">共有に保存</button>
+      <button id="btnCopy" title="unit_data.json の中身をコピー">JSONをコピー</button>
+      <button id="btnDownload" title="unit_data.json として保存">ファイルに保存</button>
+      <button id="btnImport">読み込む</button>
+    </div>
+  </header>
+
+  <div class="status" id="status"></div>
+  <div id="bannerBox"></div>
+
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+  <main id="main"></main>
+</div>
+
+<div class="overlay" id="importDlg" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="impTitle">
+    <h2 id="impTitle" style="margin:0;font-size:17px">データを読み込む</h2>
+    <p class="muted" style="margin:0">unit_data.json を選ぶか、中身をそのまま貼り付けてください。読み込むと今の編集内容は置き換わります。</p>
+    <input type="file" id="impFile" accept=".json,application/json">
+    <textarea id="impText" placeholder='{"data_version": ... } をここに貼り付け'></textarea>
+    <div class="row" style="justify-content:flex-end">
+      <button id="impInitial">同梱の初期値に戻す</button>
+      <button id="impCancel">やめる</button>
+      <button id="impOk" class="primary">読み込む</button>
+    </div>
+  </div>
+</div>
+
+<script id="seed" type="application/json">{"data_version":"初期値（2026-09-26）","settings":{"start_hp":100,"star_mult":[1.0,1.8,3.24],"pool_size":{"1":29,"2":22,"3":18,"4":12,"5":10},"shop_odds":{"1":[100,0,0,0,0],"2":[100,0,0,0,0],"3":[75,25,0,0,0],"4":[55,30,15,0,0],"5":[45,33,20,2,0],"6":[30,40,25,5,0],"7":[19,30,35,15,1],"8":[18,25,32,22,3],"9":[10,20,25,35,10],"10":[5,10,20,40,25]},"xp_to_next":{"1":2,"2":2,"3":6,"4":10,"5":20,"6":36,"7":48,"8":72,"9":84}},"skills":[{"id":"strike","name":"一撃","type":"strike","mana":50,"power":180,"dur":0},{"id":"stun","name":"封じ","type":"stun","mana":70,"power":130,"dur":1.5},{"id":"snipe","name":"狙い撃ち","type":"snipe","mana":60,"power":120,"dur":0},{"id":"leap","name":"影跳び","type":"leap","mana":50,"power":160,"dur":0},{"id":"heal","name":"癒やし","type":"heal","mana":60,"power":220,"dur":0},{"id":"aura_heal","name":"祝福","type":"aura_heal","mana":80,"power":90,"dur":0},{"id":"shield","name":"守りの構え","type":"shield","mana":60,"power":260,"dur":0},{"id":"taunt","name":"挑発","type":"taunt","mana":70,"power":200,"dur":0},{"id":"frenzy","name":"連撃","type":"frenzy","mana":50,"power":50,"dur":0},{"id":"multishot","name":"乱れ撃ち","type":"multishot","mana":60,"power":80,"dur":0},{"id":"drain","name":"吸収撃","type":"drain","mana":60,"power":170,"dur":0},{"id":"blast","name":"爆裂","type":"blast","mana":70,"power":140,"dur":0},{"id":"chain","name":"連鎖","type":"chain","mana":70,"power":150,"dur":0},{"id":"quake","name":"震撃","type":"quake","mana":80,"power":110,"dur":1.0},{"id":"buff_team","name":"鼓舞","type":"buff_team","mana":80,"power":25,"dur":0},{"id":"meteor","name":"大災","type":"meteor","mana":90,"power":220,"dur":0}],"traits":[{"name":"炎","kind":"属性","scope":"self","stats":{"burn":[1.0,2.0,3.5]},"desc":"攻撃した敵を3秒やけど（毎秒 最大HPの{burn}%）","thresholds":[]},{"name":"氷","kind":"属性","scope":"self","stats":{"chill":[20,35,50]},"desc":"攻撃した敵の攻撃速度を2秒間 -{chill}%","thresholds":[]},{"name":"雷","kind":"属性","scope":"self","stats":{"proc":[60,120,220]},"desc":"攻撃時25%で雷撃：敵2体に{proc}の魔法ダメージ","thresholds":[]},{"name":"森","kind":"属性","scope":"self","stats":{"regen_pct":[1.0,2.0,3.5]},"desc":"毎秒 最大HPの{regen_pct}%回復","thresholds":[]},{"name":"闇","kind":"属性","scope":"self","stats":{"dmg_amp":[15,30,50]},"desc":"与えるダメージ +{dmg_amp}%","thresholds":[]},{"name":"光","kind":"属性","scope":"team","stats":{"omnivamp":[8,15,25]},"desc":"味方全員が与ダメージの{omnivamp}%回復","thresholds":[]},{"name":"鋼","kind":"属性","scope":"self","stats":{"dmg_red":[15,25,40]},"desc":"受けるダメージ -{dmg_red}%","thresholds":[]},{"name":"砂","kind":"属性","scope":"self","stats":{"dodge":[15,25,40]},"desc":"{dodge}%の確率で通常攻撃を回避","thresholds":[]},{"name":"海","kind":"属性","scope":"team","stats":{"mana_regen":[2,4,7]},"desc":"味方全員が毎秒マナを{mana_regen}回復","thresholds":[]},{"name":"獣","kind":"属性","scope":"team","stats":{"atk_pct":[10,20,35]},"desc":"味方全員の攻撃力 +{atk_pct}%","thresholds":[]},{"name":"毒","kind":"属性","scope":"self","stats":{"poison":[20,40,70]},"desc":"攻撃した敵に3秒の毒（毎秒{poison}ダメージ）","thresholds":[]},{"name":"風","kind":"属性","scope":"self","stats":{"as_pct":[20,40,70]},"desc":"攻撃速度 +{as_pct}%","thresholds":[]},{"name":"岩","kind":"属性","scope":"self","stats":{"armor":[30,60,100]},"desc":"物理防御 +{armor}","thresholds":[]},{"name":"桜","kind":"属性","scope":"team","stats":{"hp_flat":[80,160,280]},"desc":"味方全員の最大HP +{hp_flat}","thresholds":[]},{"name":"竜","kind":"属性","scope":"self","stats":{"hp_pct":[25,50,80],"mr":[20,40,70]},"desc":"最大HP +{hp_pct}%・魔法防御 +{mr}","thresholds":[]},{"name":"機械","kind":"属性","scope":"self","stats":{"shield_pct":[20,35,55]},"desc":"開始時に最大HPの{shield_pct}%のシールド","thresholds":[]},{"name":"亡霊","kind":"属性","scope":"self","stats":{"revive":[25,40,60]},"desc":"一度だけHP{revive}%で復活","thresholds":[]},{"name":"星","kind":"属性","scope":"self","stats":{"ap":[20,40,70]},"desc":"スキル威力 +{ap}","thresholds":[]},{"name":"戦士","kind":"職業","scope":"self","stats":{"atk_pct":[15,30,50]},"desc":"攻撃力 +{atk_pct}%","thresholds":[]},{"name":"騎士","kind":"職業","scope":"self","stats":{"block":[12,22,35]},"desc":"受ける通常攻撃ダメージを{block}軽減","thresholds":[]},{"name":"狙撃手","kind":"職業","scope":"self","stats":{"crit":[15,30,50]},"desc":"会心率 +{crit}%","thresholds":[]},{"name":"魔術師","kind":"職業","scope":"self","stats":{"ap":[25,50,85]},"desc":"スキル威力 +{ap}","thresholds":[]},{"name":"暗殺者","kind":"職業","scope":"self","stats":{"leap":[1,1,1],"crit":[10,20,35],"crit_dmg":[20,40,70]},"desc":"開始時に敵の後列へ跳ぶ。会心率 +{crit}%・会心ダメージ +{crit_dmg}%","thresholds":[]},{"name":"守護者","kind":"職業","scope":"team","stats":{"shield_flat":[100,200,350]},"desc":"味方全員が開始時に{shield_flat}のシールド","thresholds":[]},{"name":"聖職者","kind":"職業","scope":"team","stats":{"regen_flat":[8,16,30]},"desc":"味方全員が毎秒{regen_flat}回復","thresholds":[]},{"name":"狂戦士","kind":"職業","scope":"self","stats":{"splash":[25,45,70]},"desc":"通常攻撃が周囲の敵にも{splash}%のダメージ","thresholds":[]},{"name":"呪術師","kind":"職業","scope":"enemy","stats":{"armor":[-15,-30,-50],"mr":[-15,-30,-50]},"desc":"敵全員の物理・魔法防御 {armor}","thresholds":[]},{"name":"槍兵","kind":"職業","scope":"self","stats":{"armor_pen":[25,45,70]},"desc":"敵の物理防御を{armor_pen}%無視","thresholds":[]},{"name":"拳闘士","kind":"職業","scope":"self","stats":{"hp_pct":[30,60,100]},"desc":"最大HP +{hp_pct}%","thresholds":[]},{"name":"決闘者","kind":"職業","scope":"self","stats":{"stack_as":[4,7,11]},"desc":"攻撃するたび攻撃速度 +{stack_as}%（最大8回）","thresholds":[]},{"name":"吟遊詩人","kind":"職業","scope":"team","stats":{"mana_start":[15,30,50]},"desc":"味方全員の開始時マナ +{mana_start}","thresholds":[]},{"name":"盗賊","kind":"職業","scope":"self","stats":{"gold":[1,2,3],"dodge":[10,10,10]},"desc":"戦闘後に{gold}ゴールド獲得・回避 +{dodge}%","thresholds":[]},{"name":"重装兵","kind":"職業","scope":"self","stats":{"thorns":[15,30,50]},"desc":"受けた通常攻撃の{thorns}%を反射","thresholds":[]},{"name":"忍者","kind":"職業","scope":"self","stats":{"atk_pct":[18,35,60],"ap":[18,35,60]},"desc":"攻撃力 +{atk_pct}%・スキル威力 +{ap}","thresholds":[]},{"name":"錬金術師","kind":"職業","scope":"self","stats":{"mana_on_hit":[5,10,18]},"desc":"通常攻撃で得るマナ +{mana_on_hit}","thresholds":[]},{"name":"君主","kind":"職業","scope":"team","stats":{"atk_pct":[5,10,18],"ap":[5,10,18],"hp_pct":[5,10,18]},"desc":"味方全員の攻撃力・スキル威力・最大HP +{hp_pct}%","thresholds":[]}],"units":[{"id":"u01","name":"ホムラ","cost":1,"element":"炎","classes":["戦士"],"type":"bruiser","skill":"strike","skill_name":"","look":"warrior","hp":640,"atk":55,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u02","name":"ユキメ","cost":1,"element":"氷","classes":["魔術師"],"type":"caster","skill":"stun","skill_name":"","look":"mage","hp":500,"atk":38,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u03","name":"ライガ","cost":1,"element":"雷","classes":["狙撃手"],"type":"sniper","skill":"snipe","skill_name":"","look":"archer","hp":500,"atk":55,"as":0.75,"armor":15,"mr":15,"rng":4},{"id":"u04","name":"モリオ","cost":1,"element":"森","classes":["騎士"],"type":"tank","skill":"shield","skill_name":"","look":"knight","hp":720,"atk":45,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u05","name":"カゲロウ","cost":1,"element":"闇","classes":["暗殺者"],"type":"assassin","skill":"leap","skill_name":"","look":"assassin","hp":540,"atk":62,"as":0.8,"armor":22,"mr":22,"rng":1},{"id":"u06","name":"ヒカリ","cost":1,"element":"光","classes":["聖職者"],"type":"caster","skill":"heal","skill_name":"","look":"mage","hp":500,"atk":38,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u07","name":"テツ","cost":1,"element":"鋼","classes":["重装兵"],"type":"tank","skill":"taunt","skill_name":"","look":"knight","hp":720,"atk":45,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u08","name":"サジン","cost":1,"element":"砂","classes":["盗賊"],"type":"assassin","skill":"strike","skill_name":"","look":"assassin","hp":540,"atk":62,"as":0.8,"armor":22,"mr":22,"rng":1},{"id":"u09","name":"ナミ","cost":1,"element":"海","classes":["吟遊詩人"],"type":"caster","skill":"aura_heal","skill_name":"","look":"mage","hp":500,"atk":38,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u10","name":"キバ","cost":1,"element":"獣","classes":["拳闘士"],"type":"tank","skill":"drain","skill_name":"","look":"beast","hp":720,"atk":45,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u11","name":"ドクロ","cost":1,"element":"毒","classes":["呪術師","錬金術師"],"type":"caster","skill":"blast","skill_name":"","look":"mage","hp":500,"atk":38,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u12","name":"ハヤテ","cost":1,"element":"風","classes":["決闘者","忍者"],"type":"bruiser","skill":"frenzy","skill_name":"","look":"warrior","hp":640,"atk":55,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u13","name":"ガンテツ","cost":1,"element":"岩","classes":["守護者"],"type":"tank","skill":"shield","skill_name":"","look":"knight","hp":720,"atk":45,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u14","name":"サクラ","cost":1,"element":"桜","classes":["狙撃手","吟遊詩人"],"type":"sniper","skill":"multishot","skill_name":"","look":"archer","hp":500,"atk":55,"as":0.75,"armor":15,"mr":15,"rng":4},{"id":"u15","name":"エンジ","cost":2,"element":"炎","classes":["狂戦士","戦士"],"type":"bruiser","skill":"drain","skill_name":"","look":"warrior","hp":768,"atk":63.25,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u16","name":"ツララ","cost":2,"element":"氷","classes":["守護者"],"type":"tank","skill":"taunt","skill_name":"","look":"knight","hp":864,"atk":51.75,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u17","name":"イナズマ","cost":2,"element":"雷","classes":["忍者"],"type":"assassin","skill":"leap","skill_name":"","look":"assassin","hp":648,"atk":71.3,"as":0.8,"armor":22,"mr":22,"rng":1},{"id":"u18","name":"コダマ","cost":2,"element":"森","classes":["聖職者"],"type":"caster","skill":"aura_heal","skill_name":"","look":"mage","hp":600,"atk":43.7,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u19","name":"ヨミ","cost":2,"element":"亡霊","classes":["呪術師"],"type":"caster","skill":"chain","skill_name":"","look":"ghost","hp":600,"atk":43.7,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u20","name":"ルクス","cost":2,"element":"光","classes":["騎士","槍兵"],"type":"tank","skill":"shield","skill_name":"","look":"knight","hp":864,"atk":51.75,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u21","name":"ハガネ","cost":2,"element":"鋼","classes":["槍兵"],"type":"lancer","skill":"strike","skill_name":"","look":"lancer","hp":720,"atk":63.25,"as":0.7,"armor":25,"mr":25,"rng":2},{"id":"u22","name":"スナオ","cost":2,"element":"砂","classes":["暗殺者","盗賊"],"type":"assassin","skill":"leap","skill_name":"","look":"assassin","hp":648,"atk":71.3,"as":0.8,"armor":22,"mr":22,"rng":1},{"id":"u23","name":"カイリ","cost":2,"element":"海","classes":["狙撃手"],"type":"sniper","skill":"snipe","skill_name":"","look":"archer","hp":600,"atk":63.25,"as":0.75,"armor":15,"mr":15,"rng":4},{"id":"u24","name":"ギア","cost":2,"element":"機械","classes":["重装兵"],"type":"tank","skill":"taunt","skill_name":"","look":"robot","hp":864,"atk":51.75,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u25","name":"ホシミ","cost":2,"element":"星","classes":["魔術師"],"type":"caster","skill":"blast","skill_name":"","look":"mage","hp":600,"atk":43.7,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u26","name":"ウルフ","cost":2,"element":"獣","classes":["戦士"],"type":"bruiser","skill":"frenzy","skill_name":"","look":"beast","hp":768,"atk":63.25,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u27","name":"ミドリ","cost":2,"element":"毒","classes":["錬金術師"],"type":"caster","skill":"blast","skill_name":"","look":"mage","hp":600,"atk":43.7,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u28","name":"カグラ","cost":3,"element":"炎","classes":["魔術師"],"type":"caster","skill":"blast","skill_name":"","look":"mage","hp":700,"atk":49.4,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u29","name":"フブキ","cost":3,"element":"氷","classes":["狙撃手"],"type":"sniper","skill":"multishot","skill_name":"","look":"archer","hp":700,"atk":71.5,"as":0.75,"armor":15,"mr":15,"rng":4},{"id":"u30","name":"ゴロウ","cost":3,"element":"雷","classes":["拳闘士","重装兵"],"type":"tank","skill":"quake","skill_name":"","look":"knight","hp":1008,"atk":58.5,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u31","name":"ツバキ","cost":3,"element":"森","classes":["決闘者"],"type":"bruiser","skill":"frenzy","skill_name":"","look":"warrior","hp":896,"atk":71.5,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u32","name":"クロウ","cost":3,"element":"闇","classes":["忍者"],"type":"assassin","skill":"leap","skill_name":"","look":"assassin","hp":756,"atk":80.6,"as":0.8,"armor":22,"mr":22,"rng":1},{"id":"u33","name":"セラ","cost":3,"element":"光","classes":["吟遊詩人"],"type":"caster","skill":"buff_team","skill_name":"","look":"mage","hp":700,"atk":49.4,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u34","name":"イワオ","cost":3,"element":"岩","classes":["騎士"],"type":"tank","skill":"quake","skill_name":"","look":"knight","hp":1008,"atk":58.5,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u35","name":"タツミ","cost":3,"element":"竜","classes":["戦士","拳闘士"],"type":"bruiser","skill":"drain","skill_name":"","look":"dragonkin","hp":896,"atk":71.5,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u36","name":"メカノ","cost":3,"element":"機械","classes":["錬金術師"],"type":"caster","skill":"chain","skill_name":"","look":"robot","hp":700,"atk":49.4,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u37","name":"レイス","cost":3,"element":"亡霊","classes":["暗殺者"],"type":"assassin","skill":"leap","skill_name":"","look":"ghost","hp":756,"atk":80.6,"as":0.8,"armor":22,"mr":22,"rng":1},{"id":"u38","name":"ミナト","cost":3,"element":"海","classes":["呪術師"],"type":"caster","skill":"stun","skill_name":"","look":"mage","hp":700,"atk":49.4,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u39","name":"シエル","cost":3,"element":"風","classes":["狙撃手"],"type":"sniper","skill":"snipe","skill_name":"","look":"archer","hp":700,"atk":71.5,"as":0.75,"armor":15,"mr":15,"rng":4},{"id":"u40","name":"ソウマ","cost":3,"element":"桜","classes":["槍兵"],"type":"lancer","skill":"strike","skill_name":"","look":"lancer","hp":840,"atk":71.5,"as":0.7,"armor":25,"mr":25,"rng":2},{"id":"u41","name":"イグニス","cost":4,"element":"炎","classes":["狂戦士","戦士"],"type":"bruiser","skill":"quake","skill_name":"","look":"warrior","hp":1024,"atk":79.75,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u42","name":"セツナ","cost":4,"element":"氷","classes":["魔術師"],"type":"caster","skill":"blast","skill_name":"","look":"mage","hp":800,"atk":55.1,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u43","name":"イカヅチ","cost":4,"element":"雷","classes":["魔術師"],"type":"caster","skill":"chain","skill_name":"","look":"mage","hp":800,"atk":55.1,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u44","name":"オウカ","cost":4,"element":"桜","classes":["聖職者"],"type":"caster","skill":"aura_heal","skill_name":"","look":"mage","hp":800,"atk":55.1,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u45","name":"ヤミヒメ","cost":4,"element":"闇","classes":["呪術師"],"type":"caster","skill":"meteor","skill_name":"","look":"mage","hp":800,"atk":55.1,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u46","name":"ダイチ","cost":4,"element":"岩","classes":["守護者","重装兵"],"type":"tank","skill":"taunt","skill_name":"","look":"knight","hp":1152,"atk":65.25,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u47","name":"ドラグ","cost":4,"element":"竜","classes":["騎士","拳闘士"],"type":"tank","skill":"quake","skill_name":"","look":"dragonkin","hp":1152,"atk":65.25,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u48","name":"マキナ","cost":4,"element":"機械","classes":["狙撃手","錬金術師"],"type":"sniper","skill":"multishot","skill_name":"","look":"robot","hp":800,"atk":79.75,"as":0.75,"armor":15,"mr":15,"rng":4},{"id":"u49","name":"カスミ","cost":4,"element":"亡霊","classes":["忍者"],"type":"assassin","skill":"leap","skill_name":"","look":"ghost","hp":864,"atk":89.9,"as":0.8,"armor":22,"mr":22,"rng":1},{"id":"u50","name":"シオン","cost":4,"element":"星","classes":["決闘者"],"type":"bruiser","skill":"frenzy","skill_name":"","look":"warrior","hp":1024,"atk":79.75,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u51","name":"ジャドク","cost":4,"element":"毒","classes":["暗殺者","盗賊"],"type":"assassin","skill":"leap","skill_name":"","look":"assassin","hp":864,"atk":89.9,"as":0.8,"armor":22,"mr":22,"rng":1},{"id":"u52","name":"テンショウ","cost":5,"element":"光","classes":["君主"],"type":"bruiser","skill":"buff_team","skill_name":"","look":"warrior","hp":1152,"atk":88,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u53","name":"ワダツミ","cost":5,"element":"海","classes":["君主"],"type":"bruiser","skill":"meteor","skill_name":"","look":"warrior","hp":1152,"atk":88,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u54","name":"ガリュウ","cost":5,"element":"竜","classes":["魔術師","君主"],"type":"caster","skill":"meteor","skill_name":"","look":"dragonkin","hp":900,"atk":60.8,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u55","name":"ジンテツ","cost":5,"element":"鋼","classes":["守護者"],"type":"tank","skill":"taunt","skill_name":"","look":"knight","hp":1296,"atk":72,"as":0.6,"armor":40,"mr":35,"rng":1},{"id":"u56","name":"ミカボシ","cost":5,"element":"星","classes":["狙撃手"],"type":"sniper","skill":"snipe","skill_name":"","look":"archer","hp":900,"atk":88,"as":0.75,"armor":15,"mr":15,"rng":4},{"id":"u57","name":"シャムラ","cost":5,"element":"砂","classes":["暗殺者","決闘者"],"type":"assassin","skill":"leap","skill_name":"","look":"assassin","hp":972,"atk":99.2,"as":0.8,"armor":22,"mr":22,"rng":1},{"id":"u58","name":"コガラシ","cost":5,"element":"風","classes":["吟遊詩人"],"type":"caster","skill":"chain","skill_name":"","look":"mage","hp":900,"atk":60.8,"as":0.65,"armor":15,"mr":20,"rng":3},{"id":"u59","name":"ヤマタ","cost":5,"element":"獣","classes":["狂戦士","拳闘士"],"type":"bruiser","skill":"quake","skill_name":"","look":"beast","hp":1152,"atk":88,"as":0.7,"armor":30,"mr":30,"rng":1},{"id":"u60","name":"オボロ","cost":5,"element":"亡霊","classes":["聖職者"],"type":"caster","skill":"aura_heal","skill_name":"","look":"ghost","hp":900,"atk":60.8,"as":0.65,"armor":15,"mr":20,"rng":3}],"creeps":[{"id":"c1","look":"slime","name":"スライム","hp":380,"atk":28,"as":0.6,"armor":10,"mr":10,"rng":1},{"id":"c2","look":"goblin","name":"ゴブリン","hp":480,"atk":36,"as":0.7,"armor":15,"mr":10,"rng":1},{"id":"c3","look":"wolf","name":"オオカミ","hp":620,"atk":48,"as":0.85,"armor":20,"mr":15,"rng":1},{"id":"c4","look":"golem","name":"ゴーレム","hp":1600,"atk":70,"as":0.55,"armor":60,"mr":40,"rng":1},{"id":"c5","look":"dragon","name":"ドラゴン","hp":3000,"atk":110,"as":0.7,"armor":50,"mr":50,"rng":2}]}</script>
+<script>
+(function(){
+"use strict";
+const REPO_EDIT = "https://github.com/mikatario/HexArena/edit/main/unit_data.json";
+const REPO_FILE = "https://github.com/mikatario/HexArena/blob/main/unit_data.json";
+const REMOTE = "https://raw.githubusercontent.com/mikatario/HexArena/main/unit_data.json";
+const SKILL_TYPES = {strike:"単体に魔法ダメージ",stun:"単体に魔法ダメージ＋スタン",snipe:"最も遠い敵に物理ダメージ",leap:"HP最小の敵へ跳んで魔法ダメージ",heal:"HP割合最小の味方を回復",aura_heal:"味方全員を回復",shield:"自分にシールド",taunt:"シールド＋周囲の敵を挑発",frenzy:"攻撃速度アップ（%）",multishot:"ランダムな敵3体に物理ダメージ",drain:"魔法ダメージ＋与えた60%回復",blast:"対象と周囲1マスに魔法ダメージ",chain:"敵4体に連鎖する魔法ダメージ",quake:"周囲1マスに魔法ダメージ＋スタン",buff_team:"味方全員の攻撃力・スキル威力アップ（%）",meteor:"対象の周囲2マスに魔法ダメージ"};
+const PCT = new Set(["frenzy","buff_team"]);
+const DUR_TYPES = new Set(["stun","quake"]);
+const ARCH = {tank:{n:"タンク",hp:720,atk:45,as:.6,armor:40,mr:35,rng:1},bruiser:{n:"近接",hp:640,atk:55,as:.7,armor:30,mr:30,rng:1},assassin:{n:"暗殺",hp:540,atk:62,as:.8,armor:22,mr:22,rng:1},lancer:{n:"中距離",hp:600,atk:55,as:.7,armor:25,mr:25,rng:2},sniper:{n:"遠距離",hp:500,atk:55,as:.75,armor:15,mr:15,rng:4},caster:{n:"魔法",hp:500,atk:38,as:.65,armor:15,mr:20,rng:3}};
+const LOOKS = {knight:"騎士",warrior:"戦士",lancer:"槍使い",archer:"弓使い",mage:"魔法使い",assassin:"忍び",beast:"獣人",dragonkin:"竜人",robot:"機械兵",ghost:"亡霊",slime:"スライム",goblin:"ゴブリン",wolf:"オオカミ",golem:"ゴーレム",dragon:"ドラゴン"};
+const SCOPES = {self:"その特性のユニット",team:"味方全員",enemy:"敵全員"};
+const STAT_KEYS = {burn:"やけど(最大HP%/秒)",chill:"攻速ダウン%",proc:"雷撃ダメージ",regen_pct:"毎秒回復(最大HP%)",dmg_amp:"与ダメ+%",omnivamp:"与ダメ回復%",dmg_red:"被ダメ-%",dodge:"回避%",mana_regen:"毎秒マナ",atk_pct:"攻撃力+%",poison:"毒ダメージ/秒",as_pct:"攻速+%",armor:"物理防御",hp_flat:"最大HP+",hp_pct:"最大HP+%",mr:"魔法防御",shield_pct:"開始シールド(最大HP%)",revive:"復活HP%",ap:"スキル威力+",block:"通常攻撃軽減",crit:"会心率+%",leap:"開始時跳躍(1=あり)",crit_dmg:"会心ダメ+%",shield_flat:"開始シールド",regen_flat:"毎秒回復",splash:"周囲ダメージ%",armor_pen:"防御無視%",stack_as:"攻撃毎攻速+%",mana_start:"開始マナ",gold:"戦闘後ゴールド",thorns:"反射%",mana_on_hit:"攻撃時マナ+"};
+const TABS = [["units","ユニット"],["skills","スキル"],["traits","シナジー"],["creeps","モンスター"],["settings","基本設定"],["publish","ゲームに反映"]];
+
+let seed = null;
+try { seed = JSON.parse(document.getElementById("seed").textContent); } catch(e) { seed = null; }
+let D = seed ? clone(seed) : null;
+let tab = "units";
+let dirty = false;
+let errors = [];
+let filter = {q:"", cost:"", el:""};
+let db = null, userApi = null;
+let shared = null;          // 最後に読んだ共有データのメタ情報
+let remoteNewer = null;     // 編集中に他の人が保存した共有データ
+let history = [];
+try { const t = localStorage.getItem("hx_tab"); if (t && TABS.some(x => x[0] === t)) tab = t; } catch(e) {}
+
+function clone(x){ return JSON.parse(JSON.stringify(x)); }
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function num(v){ const n = Number(v); return Number.isFinite(n) ? n : NaN; }
+function fmt(n){ if (!Number.isFinite(n)) return "–"; return Math.round(n).toLocaleString("ja-JP"); }
+function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+function markDirty(){ dirty = true; scheduleValidate(); }
+
+// ---------- 計算（ゲームと同じ式） ----------
+function abilityValue(sk, cost, star){
+  const base = num(sk.power);
+  if (PCT.has(sk.type)) return base * (1 + 0.1*(cost-1)) * [1,1.4,2][star-1];
+  let m = [1,1.5,2.5][star-1]; if (cost === 5 && star === 3) m = 4;
+  return base * (1 + 0.4*(cost-1)) * m;
+}
+function autoThresholds(n){ if (n >= 6) return [2,4,6]; if (n >= 4) return [2,4]; if (n === 3) return [2,3]; return [Math.max(1,n)]; }
+function members(name){ return D.units.filter(u => u.element === name || (u.classes||[]).includes(name)); }
+function thresholdsOf(t){ const th = (t.thresholds||[]).map(Number).filter(n => n > 0); return th.length ? th.sort((a,b)=>a-b) : autoThresholds(members(t.name).length); }
+function traitText(t, i){
+  return String(t.desc||"").replace(/\{(\w+)\}/g, (m,k) => { const v = t.stats && t.stats[k]; if (!v) return m; const x = v[Math.min(i, v.length-1)]; return x; });
+}
+function skillById(id){ return D.skills.find(s => s.id === id); }
+
+// ---------- 検査（ゲームの data.py と同じルール） ----------
+function validate(){
+  const e = [];
+  if (!D) return ["データがありません"];
+  const skills = new Set(D.skills.map(s => s.id));
+  const sids = new Set();
+  D.skills.forEach(s => {
+    if (!s.id) e.push(`名前のないスキルがあります`);
+    if (sids.has(s.id)) e.push(`スキルID「${s.id}」が重複しています`); sids.add(s.id);
+    if (!SKILL_TYPES[s.type]) e.push(`スキル「${s.name}」の効果の種類が正しくありません`);
+    if (!Number.isFinite(num(s.mana))) e.push(`スキル「${s.name}」のマナが数字ではありません`);
+    if (!Number.isFinite(num(s.power))) e.push(`スキル「${s.name}」の威力が数字ではありません`);
+  });
+  const traits = {}; D.traits.forEach(t => traits[t.name] = t);
+  const ids = new Set();
+  D.units.forEach(u => {
+    const nm = u.name || u.id;
+    if (!u.id) e.push(`IDのないユニットがあります`);
+    if (ids.has(u.id)) e.push(`ユニットID「${u.id}」が重複しています`); ids.add(u.id);
+    if (![1,2,3,4,5].includes(Number(u.cost))) e.push(`「${nm}」のコストは1〜5にしてください`);
+    if (!traits[u.element] || traits[u.element].kind !== "属性") e.push(`「${nm}」の属性「${u.element}」がシナジー表にありません`);
+    if (!u.classes || !u.classes.length) e.push(`「${nm}」に職業がありません`);
+    (u.classes||[]).forEach(c => { if (!traits[c] || traits[c].kind !== "職業") e.push(`「${nm}」の職業「${c}」がシナジー表にありません`); });
+    if (!skills.has(u.skill)) e.push(`「${nm}」のスキルがスキル表にありません`);
+    if (!ARCH[u.type]) e.push(`「${nm}」のタイプが正しくありません`);
+    for (const k of ["hp","atk","as","armor","mr","rng"]) if (!Number.isFinite(num(u[k]))) e.push(`「${nm}」の${k}が数字ではありません`);
+    if (num(u.hp) <= 0 || num(u.as) <= 0 || num(u.rng) < 1) e.push(`「${nm}」のHP・攻撃速度は0より大きく、射程は1以上にしてください`);
+  });
+  for (let c = 1; c <= 5; c++) if (!D.units.some(u => Number(u.cost) === c)) e.push(`${c}コストのユニットが1体もいません`);
+  ["c1","c2","c3","c4","c5"].forEach(c => { if (!D.creeps.some(x => x.id === c)) e.push(`モンスター ${c} がありません`); });
+  const st = D.settings;
+  for (let lv = 1; lv <= 10; lv++) { const o = st.shop_odds[lv]; if (!o || o.length !== 5 || o.some(x => !Number.isFinite(num(x))) || o.reduce((a,b)=>a+num(b),0) <= 0) e.push(`レベル${lv}の出現率が正しくありません`); }
+  for (let lv = 1; lv <= 9; lv++) if (!Number.isFinite(num(st.xp_to_next[lv]))) e.push(`レベル${lv}の必要経験値が数字ではありません`);
+  if (!st.star_mult || st.star_mult.length !== 3) e.push("★倍率は3つ必要です");
+  D.traits.forEach(t => { if (!t.name) e.push("名前のないシナジーがあります"); });
+  return e;
+}
+let vTimer = null;
+function scheduleValidate(){ clearTimeout(vTimer); vTimer = setTimeout(() => { errors = validate(); renderStatus(); }, 250); }
+
+// ---------- 出力用（数値を正しい型に） ----------
+function cleaned(){
+  const d = clone(D);
+  const n = v => { const x = num(v); return Number.isFinite(x) ? x : v; };
+  d.units.forEach(u => { for (const k of ["cost","hp","atk","as","armor","mr","rng"]) u[k] = n(u[k]); });
+  d.skills.forEach(s => { for (const k of ["mana","power","dur"]) s[k] = n(s[k] || 0); });
+  d.creeps.forEach(c => { for (const k of ["hp","atk","as","armor","mr","rng"]) c[k] = n(c[k]); });
+  d.traits.forEach(t => { for (const k in t.stats) t.stats[k] = t.stats[k].map(n); t.thresholds = (t.thresholds||[]).map(Number).filter(x => x > 0); });
+  const st = d.settings;
+  st.start_hp = n(st.start_hp); st.star_mult = st.star_mult.map(n);
+  for (const k in st.pool_size) st.pool_size[k] = n(st.pool_size[k]);
+  for (const k in st.shop_odds) st.shop_odds[k] = st.shop_odds[k].map(n);
+  for (const k in st.xp_to_next) st.xp_to_next[k] = n(st.xp_to_next[k]);
+  return d;
+}
+function jsonText(){ return JSON.stringify(cleaned(), null, 1) + "\n"; }
+
+// ---------- 画面 ----------
+function renderAll(){ renderTabs(); renderMain(); renderStatus(); renderMeta(); }
+
+function renderMeta(){
+  const m = document.getElementById("meta");
+  if (!D) { m.textContent = "データがありません。「読み込む」から unit_data.json を読み込んでください。"; return; }
+  let s = `データ版：${D.data_version || "（名前なし）"}`;
+  if (shared && shared.savedAt) {
+    s += `　最終共有保存：${new Date(shared.savedAt).toLocaleString("ja-JP")}`;
+    if (shared.byName) s += `（${shared.byName}）`;
+  } else if (!db) s += "　共有保存はこの画面では使えません（ファイル保存を使ってください）";
+  m.textContent = s;
+}
+
+function renderStatus(){
+  const box = document.getElementById("status");
+  if (!D) { box.innerHTML = ""; return; }
+  const parts = [];
+  parts.push(dirty ? `<span class="pill dirty">未保存の変更あり</span>` : `<span class="pill">変更なし</span>`);
+  parts.push(errors.length ? `<button class="pill bad" id="errPill">要確認 ${errors.length}件</button>` : `<span class="pill ok">チェックOK</span>`);
+  parts.push(`<span class="pill">ユニット ${D.units.length}　スキル ${D.skills.length}　シナジー ${D.traits.length}</span>`);
+  box.innerHTML = parts.join("");
+  const ep = document.getElementById("errPill");
+  if (ep) ep.onclick = () => { tab = "publish"; saveTab(); renderAll(); };
+  const bb = document.getElementById("bannerBox");
+  if (remoteNewer) {
+    bb.innerHTML = `<div class="banner info"><span>ほかの人が共有データを保存しました（${new Date(remoteNewer.savedAt).toLocaleString("ja-JP")}）。</span><button id="takeRemote">そちらを読み込む（今の変更は消えます）</button><button id="keepMine">自分の編集を続ける</button></div>`;
+    document.getElementById("takeRemote").onclick = () => { applyShared(remoteNewer); remoteNewer = null; renderAll(); };
+    document.getElementById("keepMine").onclick = () => { remoteNewer = null; renderStatus(); };
+  } else bb.innerHTML = "";
+}
+
+function renderTabs(){
+  const nav = document.getElementById("tabs");
+  if (!D) { nav.innerHTML = ""; return; }
+  const counts = {units:D.units.length, skills:D.skills.length, traits:D.traits.length, creeps:D.creeps.length};
+  nav.innerHTML = TABS.map(([k,l]) => `<button role="tab" id="tab-${k}" aria-selected="${tab===k}" data-tab="${k}">${l}${counts[k] != null ? `<span class="count">${counts[k]}</span>` : ""}</button>`).join("");
+  nav.querySelectorAll("button").forEach(b => b.onclick = () => { tab = b.dataset.tab; saveTab(); renderTabs(); renderMain(); });
+}
+function saveTab(){ try { localStorage.setItem("hx_tab", tab); } catch(e) {} }
+
+function options(obj, sel){ return Object.entries(obj).map(([k,v]) => `<option value="${esc(k)}"${k===sel?" selected":""}>${esc(v)}</option>`).join(""); }
+function optList(arr, sel){ return arr.map(v => `<option value="${esc(v)}"${v===sel?" selected":""}>${esc(v)}</option>`).join(""); }
+function elements(){ return D.traits.filter(t => t.kind === "属性").map(t => t.name); }
+function classesList(){ return D.traits.filter(t => t.kind === "職業").map(t => t.name); }
+
+function renderMain(){
+  const main = document.getElementById("main");
+  if (!D) { main.innerHTML = `<div class="panel"><p>データがありません。</p><button onclick="document.getElementById('btnImport').click()">読み込む</button></div>`; return; }
+  ({units:renderUnits, skills:renderSkills, traits:renderTraits, creeps:renderCreeps, settings:renderSettings, publish:renderPublish})[tab](main);
+}
+
+// ----- ユニット -----
+function unitRowHtml(u, i){
+  const sk = skillById(u.skill);
+  const c = Number(u.cost) || 1;
+  const pv = [1,2,3].map(s => fmt(num(u.hp) * num(D.settings.star_mult[s-1]))).join(" / ");
+  const skv = sk ? [1,2,3].map(s => fmt(abilityValue(sk, c, s))).join(" / ") : "–";
+  return `<tr data-i="${i}">
+    <td><input data-k="name" value="${esc(u.name)}" style="width:104px" aria-label="名前"></td>
+    <td><span class="cost cost${c}"></span><select data-k="cost" aria-label="コスト">${[1,2,3,4,5].map(n=>`<option${n===c?" selected":""}>${n}</option>`).join("")}</select></td>
+    <td><select data-k="element" aria-label="属性">${optList(elements(), u.element)}</select></td>
+    <td><div class="chips">${(u.classes||[]).map(cl => `<span class="chip" data-rm="${esc(cl)}" title="クリックで外す">${esc(cl)} ×</span>`).join("")}<select data-add="1" aria-label="職業を追加"><option value="">＋</option>${optList(classesList().filter(x => !(u.classes||[]).includes(x)), "")}</select></div></td>
+    <td><select data-k="type" aria-label="タイプ">${Object.entries(ARCH).map(([k,a])=>`<option value="${k}"${k===u.type?" selected":""}>${a.n}</option>`).join("")}</select></td>
+    <td><select data-k="look" aria-label="見た目">${options(LOOKS, u.look)}</select></td>
+    <td><select data-k="skill" aria-label="スキル">${D.skills.map(s => `<option value="${esc(s.id)}"${s.id===u.skill?" selected":""}>${esc(s.name)}</option>`).join("")}</select></td>
+    <td><input class="num" data-k="hp" value="${esc(u.hp)}" aria-label="HP"></td>
+    <td><input class="num s" data-k="atk" value="${esc(u.atk)}" aria-label="攻撃力"></td>
+    <td><input class="num s" data-k="as" value="${esc(u.as)}" aria-label="攻撃速度"></td>
+    <td><input class="num s" data-k="armor" value="${esc(u.armor)}" aria-label="物理防御"></td>
+    <td><input class="num s" data-k="mr" value="${esc(u.mr)}" aria-label="魔法防御"></td>
+    <td><input class="num s" data-k="rng" value="${esc(u.rng)}" aria-label="射程"></td>
+    <td class="pv" data-pv="hp">${pv}</td>
+    <td class="pv" data-pv="sk">${skv}</td>
+    <td><input data-k="skill_name" value="${esc(u.skill_name||"")}" placeholder="${esc(u.element + "の" + (sk ? sk.name : ""))}" style="width:120px" aria-label="スキル表示名"></td>
+    <td><button class="danger" data-del="1" title="このユニットを削除">削除</button></td>
+  </tr>`;
+}
+function renderUnits(main){
+  const els = elements();
+  main.innerHTML = `
+  <div class="toolbar">
+    <input type="search" id="uq" placeholder="名前・職業で探す" value="${esc(filter.q)}" aria-label="検索">
+    <select id="ucost" aria-label="コストで絞り込み"><option value="">全コスト</option>${[1,2,3,4,5].map(n=>`<option${String(n)===filter.cost?" selected":""}>${n}</option>`).join("")}</select>
+    <select id="uel" aria-label="属性で絞り込み"><option value="">全属性</option>${optList(els, filter.el)}</select>
+    <button id="uadd">ユニットを追加</button>
+    <span class="hint">★1の値を入力します。★2・★3は「基本設定」の★倍率で自動計算。スキル威力はコストと★で自動的に伸びます。</span>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>名前</th><th>コスト</th><th>属性</th><th>職業</th><th>タイプ</th><th>見た目</th><th>スキル</th><th>HP</th><th>攻撃</th><th>攻速</th><th>物防</th><th>魔防</th><th>射程</th><th>HP ★1/★2/★3</th><th>スキル値 ★1/★2/★3</th><th>スキル表示名（空欄＝自動）</th><th></th></tr></thead>
+    <tbody id="utb"></tbody>
+  </table></div>`;
+  const tb = document.getElementById("utb");
+  const draw = () => {
+    const q = filter.q.trim();
+    tb.innerHTML = D.units.map((u,i) => ({u,i})).filter(({u}) =>
+      (!filter.cost || String(u.cost) === filter.cost) && (!filter.el || u.element === filter.el) &&
+      (!q || (u.name||"").includes(q) || (u.classes||[]).some(c => c.includes(q)) || (u.id||"").includes(q))
+    ).map(({u,i}) => unitRowHtml(u,i)).join("") || `<tr><td colspan="17" class="muted">条件に合うユニットがいません</td></tr>`;
+  };
+  draw();
+  document.getElementById("uq").oninput = e => { filter.q = e.target.value; draw(); };
+  document.getElementById("ucost").onchange = e => { filter.cost = e.target.value; draw(); };
+  document.getElementById("uel").onchange = e => { filter.el = e.target.value; draw(); };
+  document.getElementById("uadd").onclick = () => {
+    let n = D.units.length + 1, id;
+    do { id = "u" + String(n).padStart(2, "0"); n++; } while (D.units.some(u => u.id === id));
+    const a = ARCH.bruiser;
+    D.units.push({id, name:"新ユニット", cost:1, element:els[0], classes:[classesList()[0]], type:"bruiser", skill:D.skills[0].id, skill_name:"", look:"warrior", hp:a.hp, atk:a.atk, as:a.as, armor:a.armor, mr:a.mr, rng:a.rng});
+    filter = {q:"", cost:"", el:""}; markDirty(); renderTabs(); renderUnits(main);
+    tb.lastElementChild && tb.lastElementChild.scrollIntoView({block:"center"});
+    toast("ユニットを追加しました（一番下）");
+  };
+  tb.addEventListener("input", e => {
+    const tr = e.target.closest("tr"); const k = e.target.dataset.k; if (!tr || !k || e.target.tagName !== "INPUT") return;
+    const u = D.units[+tr.dataset.i]; u[k] = e.target.value;
+    if (e.target.classList.contains("num")) e.target.classList.toggle("bad", !Number.isFinite(num(e.target.value)));
+    if (k === "hp") tr.querySelector('[data-pv="hp"]').textContent = [1,2,3].map(s => fmt(num(u.hp) * num(D.settings.star_mult[s-1]))).join(" / ");
+    markDirty();
+  });
+  tb.addEventListener("change", e => {
+    const tr = e.target.closest("tr"); if (!tr) return; const i = +tr.dataset.i; const u = D.units[i];
+    if (e.target.dataset.add) { if (e.target.value) { u.classes = [...(u.classes||[]), e.target.value]; markDirty(); tr.outerHTML = unitRowHtml(u,i); } return; }
+    const k = e.target.dataset.k; if (!k || e.target.tagName !== "SELECT") return;
+    u[k] = k === "cost" ? Number(e.target.value) : e.target.value;
+    if (k === "type") { const a = ARCH[u.type]; if (a && a.rng !== undefined && confirmInline(tr, `タイプの標準値（HP${a.hp}・攻撃${a.atk}など）を入れますか？`, () => { Object.assign(u, {hp:a.hp, atk:a.atk, as:a.as, armor:a.armor, mr:a.mr, rng:a.rng}); tr.outerHTML = unitRowHtml(u,i); })) {} }
+    markDirty();
+    if (k !== "type") tr.outerHTML = unitRowHtml(u,i);
+  });
+  tb.addEventListener("click", e => {
+    const tr = e.target.closest("tr"); if (!tr) return; const i = +tr.dataset.i; const u = D.units[i];
+    if (e.target.dataset.rm) { u.classes = u.classes.filter(c => c !== e.target.dataset.rm); markDirty(); tr.outerHTML = unitRowHtml(u,i); }
+    else if (e.target.dataset.del) confirmInline(tr, `「${u.name}」を削除しますか？`, () => { D.units.splice(i,1); markDirty(); renderTabs(); renderUnits(main); });
+  });
+}
+function confirmInline(tr, msg, yes){
+  const cols = tr.children.length;
+  const row = document.createElement("tr");
+  row.innerHTML = `<td colspan="${cols}"><div class="row"><span>${esc(msg)}</span><button class="primary" data-y>はい</button><button data-n>いいえ</button></div></td>`;
+  tr.after(row);
+  row.querySelector("[data-y]").onclick = () => { row.remove(); yes(); };
+  row.querySelector("[data-n]").onclick = () => row.remove();
+  return true;
+}
+
+// ----- スキル -----
+function renderSkills(main){
+  const used = id => D.units.filter(u => u.skill === id).length;
+  main.innerHTML = `
+  <div class="toolbar"><button id="sadd">スキルを追加</button><span class="hint">効果の動きは種類ごとに決まっています。名前・必要マナ・威力・秒数を変えられます。威力はコスト1・★1の値で、コストと★で伸びます。</span></div>
+  <div class="scroll"><table>
+    <thead><tr><th>ID</th><th>名前</th><th>効果の種類</th><th>必要マナ</th><th>威力</th><th>スタン秒数</th><th>1コスト ★1/★2/★3</th><th>5コスト ★1/★2/★3</th><th>使っているユニット</th><th></th></tr></thead>
+    <tbody id="stb">${D.skills.map((s,i) => skillRow(s,i,used(s.id))).join("")}</tbody>
+  </table></div>`;
+  const tb = document.getElementById("stb");
+  document.getElementById("sadd").onclick = () => {
+    let n = 1; while (D.skills.some(s => s.id === "skill" + n)) n++;
+    D.skills.push({id:"skill"+n, name:"新スキル", type:"strike", mana:60, power:150, dur:0});
+    markDirty(); renderTabs(); renderSkills(main);
+  };
+  const upd = (tr) => { const i = +tr.dataset.i; tr.outerHTML = skillRow(D.skills[i], i, used(D.skills[i].id)); };
+  tb.addEventListener("change", e => {
+    const tr = e.target.closest("tr"); const k = e.target.dataset.k; if (!tr || !k) return;
+    const s = D.skills[+tr.dataset.i];
+    if (k === "id") {
+      const nv = e.target.value.trim(); if (!nv || D.skills.some(x => x !== s && x.id === nv)) { toast("そのIDは使えません（空欄か重複）"); e.target.value = s.id; return; }
+      D.units.forEach(u => { if (u.skill === s.id) u.skill = nv; }); s.id = nv;
+    } else s[k] = e.target.value;
+    markDirty(); upd(tr);
+  });
+  tb.addEventListener("click", e => {
+    const tr = e.target.closest("tr"); if (!tr || !e.target.dataset.del) return;
+    const s = D.skills[+tr.dataset.i];
+    if (used(s.id)) { toast(`「${s.name}」は${used(s.id)}体が使っているので削除できません`); return; }
+    confirmInline(tr, `「${s.name}」を削除しますか？`, () => { D.skills.splice(+tr.dataset.i, 1); markDirty(); renderTabs(); renderSkills(main); });
+  });
+}
+function skillRow(s, i, n){
+  const v = c => [1,2,3].map(st => fmt(abilityValue(s, c, st)) + (PCT.has(s.type) ? "%" : "")).join(" / ");
+  return `<tr data-i="${i}">
+    <td><input data-k="id" value="${esc(s.id)}" style="width:90px;font-family:var(--mono)" aria-label="ID"></td>
+    <td><input data-k="name" value="${esc(s.name)}" style="width:110px" aria-label="名前"></td>
+    <td><select data-k="type" aria-label="効果の種類">${options(SKILL_TYPES, s.type)}</select></td>
+    <td><input class="num s" data-k="mana" value="${esc(s.mana)}" aria-label="必要マナ"></td>
+    <td><input class="num s" data-k="power" value="${esc(s.power)}" aria-label="威力"></td>
+    <td>${DUR_TYPES.has(s.type) ? `<input class="num s" data-k="dur" value="${esc(s.dur)}" aria-label="秒数">` : `<span class="muted">—</span>`}</td>
+    <td class="pv">${v(1)}</td><td class="pv">${v(5)}</td>
+    <td>${n ? n + "体" : `<span class="muted">なし</span>`}</td>
+    <td><button class="danger" data-del="1">削除</button></td></tr>`;
+}
+
+// ----- シナジー -----
+function renderTraits(main){
+  main.innerHTML = `
+  <div class="toolbar"><span class="hint">値は「★なし→段階1, 段階2, 段階3」の順にカンマ区切り。説明文の {キー名} に値が入ります。発動人数を空欄にすると、持っているユニット数から自動で決まります。</span></div>
+  <div class="cards" id="tcards">${D.traits.map((t,i) => traitCard(t,i)).join("")}</div>`;
+  const box = document.getElementById("tcards");
+  box.addEventListener("input", e => {
+    const card = e.target.closest(".card"); const k = e.target.dataset.k; if (!card || !k) return;
+    const t = D.traits[+card.dataset.i];
+    if (k === "desc") t.desc = e.target.value;
+    else if (k === "th") t.thresholds = e.target.value.split(/[,、\s]+/).filter(Boolean).map(Number);
+    else if (k.startsWith("st:")) {
+      const vals = e.target.value.split(/[,、\s]+/).filter(Boolean).map(Number);
+      e.target.classList.toggle("bad", !vals.length || vals.some(v => !Number.isFinite(v)));
+      if (vals.length && vals.every(Number.isFinite)) t.stats[k.slice(3)] = vals;
+    }
+    card.querySelector(".tiers").innerHTML = tiersHtml(t);
+    markDirty();
+  });
+}
+function tiersHtml(t){
+  const th = thresholdsOf(t);
+  return th.map((n,i) => `<div><b>${n}体</b>${esc(traitText(t,i))}</div>`).join("");
+}
+function traitCard(t,i){
+  const m = members(t.name);
+  return `<div class="card" data-i="${i}">
+    <h3>${esc(t.name)} <span class="kind">${esc(t.kind)}</span> <span class="kind">対象：${esc(SCOPES[t.scope]||t.scope)}</span></h3>
+    <div class="row">
+      ${Object.entries(t.stats).map(([k,v]) => `<label class="field">${esc(STAT_KEYS[k]||k)} <span class="mono">{${esc(k)}}</span><input data-k="st:${esc(k)}" value="${esc(v.join(", "))}" style="width:150px;font-family:var(--mono)"></label>`).join("")}
+      <label class="field">発動人数（空欄＝自動 ${autoThresholds(m.length).join("・")}）<input data-k="th" value="${esc((t.thresholds||[]).join(", "))}" style="width:120px;font-family:var(--mono)" placeholder="${autoThresholds(m.length).join(", ")}"></label>
+    </div>
+    <label class="field">説明文<input data-k="desc" value="${esc(t.desc)}" style="width:100%"></label>
+    <div class="tiers">${tiersHtml(t)}</div>
+    <div class="muted" style="font-size:12px">ユニット ${m.length}体：${esc(m.map(u => u.name).join("・") || "なし")}</div>
+  </div>`;
+}
+
+// ----- モンスター -----
+function renderCreeps(main){
+  main.innerHTML = `
+  <div class="toolbar"><span class="hint">ラウンド1〜3と7の倍数ラウンドに出るモンスターです。c1〜c5の出番はゲーム側で決まっていて、ここでは強さと見た目を変えられます。</span></div>
+  <div class="scroll"><table><thead><tr><th>ID</th><th>名前</th><th>見た目</th><th>HP</th><th>攻撃</th><th>攻速</th><th>物防</th><th>魔防</th><th>射程</th></tr></thead>
+  <tbody id="ctb">${D.creeps.map((c,i) => `<tr data-i="${i}"><td class="mono">${esc(c.id)}</td>
+    <td><input data-k="name" value="${esc(c.name)}" style="width:110px"></td>
+    <td><select data-k="look">${options(LOOKS, c.look)}</select></td>
+    ${["hp","atk","as","armor","mr","rng"].map(k => `<td><input class="num s" data-k="${k}" value="${esc(c[k])}" aria-label="${k}"></td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  const tb = document.getElementById("ctb");
+  const h = e => { const tr = e.target.closest("tr"); const k = e.target.dataset.k; if (!tr || !k) return; D.creeps[+tr.dataset.i][k] = e.target.value; if (e.target.classList.contains("num")) e.target.classList.toggle("bad", !Number.isFinite(num(e.target.value))); markDirty(); };
+  tb.addEventListener("input", h); tb.addEventListener("change", h);
+}
+
+// ----- 基本設定 -----
+function renderSettings(main){
+  const st = D.settings;
+  const lv = Array.from({length:10}, (_,i) => i+1);
+  main.innerHTML = `<div class="grid2">
+    <div class="panel"><h2>基本</h2>
+      <div class="row">
+        <label class="field">開始時の体力<input class="num" data-s="start_hp" value="${esc(st.start_hp)}"></label>
+        ${[0,1,2].map(i => `<label class="field">★${i+1}の倍率（HP・攻撃）<input class="num" data-star="${i}" value="${esc(st.star_mult[i])}"></label>`).join("")}
+      </div></div>
+    <div class="panel"><h2>ユニットの在庫（1種類あたり）</h2>
+      <div class="row">${[1,2,3,4,5].map(c => `<label class="field"><span><span class="cost cost${c}"></span>${c}コスト</span><input class="num s" data-pool="${c}" value="${esc(st.pool_size[c])}"></label>`).join("")}</div></div>
+    <div class="panel" style="grid-column:1/-1"><h2>レベルごとのショップ出現率（%）</h2>
+      <div class="scroll"><table><thead><tr><th>レベル</th>${[1,2,3,4,5].map(c => `<th><span class="cost cost${c}"></span>${c}コスト</th>`).join("")}<th>合計</th><th>次のレベルまでの経験値</th></tr></thead>
+      <tbody>${lv.map(l => `<tr data-l="${l}"><td class="mono">Lv${l}</td>${[0,1,2,3,4].map(c => `<td><input class="num s" data-odds="${c}" value="${esc(st.shop_odds[l][c])}"></td>`).join("")}<td class="pv" data-sum>${sumOdds(l)}</td><td>${l < 10 ? `<input class="num s" data-xp value="${esc(st.xp_to_next[l])}">` : `<span class="muted">最大</span>`}</td></tr>`).join("")}</tbody></table></div>
+      <p class="muted" style="margin:8px 0 0">合計が100でなくても割合として扱われますが、100にそろえるのがおすすめです。</p></div>
+  </div>`;
+  main.querySelectorAll("input").forEach(inp => inp.addEventListener("input", e => {
+    const t = e.target, v = t.value;
+    t.classList.toggle("bad", !Number.isFinite(num(v)));
+    if (t.dataset.s) st[t.dataset.s] = v;
+    else if (t.dataset.star) st.star_mult[+t.dataset.star] = v;
+    else if (t.dataset.pool) st.pool_size[t.dataset.pool] = v;
+    else { const l = t.closest("tr").dataset.l; if (t.dataset.odds !== undefined) { st.shop_odds[l][+t.dataset.odds] = v; const s = t.closest("tr").querySelector("[data-sum]"); s.textContent = sumOdds(l); } else if (t.dataset.xp !== undefined) st.xp_to_next[l] = v; }
+    markDirty();
+  }));
+}
+function sumOdds(l){ const s = D.settings.shop_odds[l].reduce((a,b) => a + num(b), 0); return Number.isFinite(s) ? (Math.round(s*100)/100) + "%" : "–"; }
+
+// ----- ゲームに反映 -----
+function renderPublish(main){
+  main.innerHTML = `<div class="grid2">
+    <div class="panel"><h2>ゲームに反映する手順</h2>
+      <ol class="steps">
+        <li>上の「データ版」の名前を変えておくと、ゲームのタイトル画面でどのデータか分かります。<br><label class="field" style="margin-top:6px">データ版の名前<input id="dver" value="${esc(D.data_version||"")}" style="width:100%"></label></li>
+        <li>「JSONをコピー」を押します。</li>
+        <li><a class="btn" href="${REPO_EDIT}" target="_blank" rel="noopener">GitHubの unit_data.json 編集画面を開く</a><br>中身を全部選択（Ctrl+A）して貼り付け（Ctrl+V）、右上の「Commit changes」を押します。</li>
+        <li>ゲームを起動し直すか、タイトル画面の「最新データを読み込む」を押すと反映されます。exeを作り直す必要はありません。</li>
+      </ol>
+      <p class="muted" style="margin:12px 0 0">対戦ではホストのデータが参加者全員に配られるので、ホストが最新データを読み込んでいれば全員そろいます。自分だけ試したいときは「ファイルに保存」した unit_data.json を HexArena.exe と同じフォルダに置いてください（置いている間はそちらが優先されます）。</p>
+    </div>
+    <div class="panel"><h2>チェック結果</h2>
+      ${errors.length ? `<p style="margin:0 0 8px;color:var(--warn)">このままだとゲームが読み込めません。直してから反映してください。</p><ul class="errors">${errors.map(e => `<li>${esc(e)}</li>`).join("")}</ul>` : `<p style="margin:0;color:var(--ok)">問題は見つかりませんでした。そのまま反映できます。</p>`}
+      <h2 style="margin-top:18px">共有保存の履歴</h2>
+      ${db ? (history.length ? `<ul class="history">${history.map((h,i) => `<li><span class="mono">${esc(new Date(h.savedAt).toLocaleString("ja-JP"))}</span><span>${esc(h.version||"")}</span><span class="muted">${esc(h.byName||"")}</span><button data-h="${i}">この版を開く</button></li>`).join("")}</ul>` : `<p class="muted" style="margin:0">まだありません。「共有に保存」すると記録されます。</p>`) : `<p class="muted" style="margin:0">この画面では共有保存が使えません。</p>`}
+    </div></div>`;
+  document.getElementById("dver").oninput = e => { D.data_version = e.target.value; markDirty(); renderMeta(); };
+  main.querySelectorAll("[data-h]").forEach(b => b.onclick = async () => {
+    const h = history[+b.dataset.h];
+    try { const snap = await db.doc("history/" + h.id).get(); if (snap.exists) { D = clone(snap.data().data); dirty = true; errors = validate(); renderAll(); toast("過去の版を開きました（共有に保存すると元に戻せます）"); } }
+    catch(e) { toast("読み込めませんでした"); }
+  });
+}
+
+// ---------- ボタン ----------
+document.getElementById("btnCopy").onclick = async () => {
+  if (!D) return;
+  errors = validate(); renderStatus();
+  const text = jsonText();
+  try { await navigator.clipboard.writeText(text); toast(errors.length ? `コピーしました（要確認 ${errors.length}件あり）` : "コピーしました。GitHubに貼り付けてください"); }
+  catch(e) { openImport(text, true); toast("自動コピーできなかったので、表示された文字を全選択してコピーしてください"); }
+};
+document.getElementById("btnDownload").onclick = async () => {
+  if (!D) return;
+  const text = jsonText();
+  let dl = null; try { dl = await claude.use("downloads"); } catch(e) {}
+  if (dl) { try { await dl.save({filename:"unit_data.json", data:text}); toast("保存しました"); } catch(e) { if (e && e.code !== "declined") toast("保存できませんでした"); } return; }
+  try { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], {type:"application/json"})); a.download = "unit_data.json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+  catch(e) { toast("この画面では保存できません。「JSONをコピー」を使ってください"); }
+};
+document.getElementById("btnSave").onclick = async () => {
+  if (!D) return;
+  if (!db) { toast("この画面では共有保存が使えません。ファイルに保存してください"); return; }
+  const btn = document.getElementById("btnSave"); btn.disabled = true;
+  try {
+    let by = "", byName = "";
+    if (userApi) { try { by = await userApi.id(); const me = await userApi.me(); byName = (me && me.name) || ""; } catch(e) {} }
+    const d = cleaned(); const savedAt = Date.now();
+    const hid = "h" + savedAt;
+    await db.doc("history/" + hid).set({savedAt, version:d.data_version || "", by, data:d});
+    await db.doc("editor/current").set({savedAt, by, historyId:hid, data:d});
+    shared = {savedAt, by, byName}; dirty = false; lastSeen = savedAt;
+    renderStatus(); renderMeta(); loadHistory(); toast("共有に保存しました");
+  } catch(e) {
+    toast(e && e.code === "not_granted" || (e && /permission|denied|grant/i.test(e.code||"")) ? "保存する権限がありません（閲覧のみ）" : "保存できませんでした：" + (e && (e.message || e.code) || ""));
+  } finally { btn.disabled = false; }
+};
+
+// ---------- 読み込み ----------
+function openImport(text, copyMode){
+  const dlg = document.getElementById("importDlg");
+  const ta = document.getElementById("impText");
+  ta.value = text || "";
+  document.getElementById("impTitle").textContent = copyMode ? "この文字をコピーしてください" : "データを読み込む";
+  document.getElementById("impOk").hidden = !!copyMode;
+  document.getElementById("impFile").hidden = !!copyMode;
+  document.getElementById("impInitial").hidden = !!copyMode || !seed;
+  dlg.hidden = false;
+  if (copyMode) { ta.focus(); ta.select(); }
+}
+function closeImport(){ document.getElementById("importDlg").hidden = true; }
+function loadData(obj, label){
+  if (!obj || !obj.units || !obj.skills || !obj.traits || !obj.settings || !obj.creeps) { toast("unit_data.json の形式ではありません"); return false; }
+  D = clone(obj); dirty = true; errors = validate(); renderAll(); toast(label + "を読み込みました（まだ共有には保存されていません）"); return true;
+}
+document.getElementById("btnImport").onclick = () => openImport("", false);
+document.getElementById("impCancel").onclick = closeImport;
+document.getElementById("impInitial").onclick = () => { if (loadData(seed, "同梱の初期値")) closeImport(); };
+document.getElementById("impFile").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader(); r.onload = () => { document.getElementById("impText").value = String(r.result).replace(/^﻿/, ""); }; r.readAsText(f, "utf-8");
+};
+document.getElementById("impOk").onclick = () => {
+  try { if (loadData(JSON.parse(document.getElementById("impText").value), "データ")) closeImport(); }
+  catch(e) { toast("JSONとして読めませんでした。全部コピーできているか確認してください"); }
+};
+document.getElementById("importDlg").addEventListener("click", e => { if (e.target.id === "importDlg") closeImport(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeImport(); });
+window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+// ---------- 共有データ（claude.ai上で開いたとき） ----------
+let lastSeen = 0;
+function applyShared(doc){
+  D = clone(doc.data); dirty = false; lastSeen = doc.savedAt || 0;
+  shared = {savedAt:doc.savedAt, by:doc.by, byName:""}; errors = validate();
+  resolveName();
+}
+async function resolveName(){
+  if (!userApi || !shared || !shared.by) { renderMeta(); return; }
+  try { const ps = await userApi.profiles([shared.by]); shared.byName = (ps[shared.by] && ps[shared.by].name) || ""; } catch(e) {}
+  renderMeta(); renderHistoryNames();
+}
+async function loadHistory(){
+  if (!db) return;
+  try {
+    const q = await db.collection("history").orderBy("savedAt", "desc").limit(20).get();
+    history = q.docs.map(d => { const x = d.data(); return {id:d.id, savedAt:x.savedAt, version:x.version, by:x.by, byName:""}; });
+    renderHistoryNames();
+  } catch(e) {}
+}
+async function renderHistoryNames(){
+  if (userApi && history.length) {
+    try { const ids = [...new Set(history.map(h => h.by).filter(Boolean))]; const ps = await userApi.profiles(ids); history.forEach(h => h.byName = (ps[h.by] && ps[h.by].name) || ""); } catch(e) {}
+  }
+  if (tab === "publish") renderMain();
+}
+async function tryRemote(){
+  // GitHub Pages などで開いたときは GitHub の最新を初期値にする
+  try { const r = await fetch(REMOTE, {cache:"no-store"}); if (!r.ok) return; const j = await r.json(); if (j && j.units && !dirty && !shared) { D = j; errors = validate(); renderAll(); } } catch(e) {}
+}
+
+errors = validate();
+renderAll();
+if (window.claude && typeof claude.use === "function") {
+  claude.use("user").then(u => { userApi = u; resolveName(); }).catch(() => {});
+  claude.use("db").then(async d => {
+    db = d;
+    if (!db) { renderMeta(); tryRemote(); return; }
+    const ref = db.doc("editor/current");
+    try { const s = await ref.get(); if (s.exists && !dirty) { applyShared(s.data()); renderAll(); } } catch(e) {}
+    loadHistory(); renderMeta();
+    ref.onSnapshot(s => {
+      if (!s.exists) return; const doc = s.data();
+      if ((doc.savedAt || 0) <= lastSeen) return;
+      if (dirty) { remoteNewer = doc; renderStatus(); }
+      else { applyShared(doc); renderAll(); loadHistory(); toast("ほかの人が保存した最新データに更新しました"); }
+    }, () => {});
+  }).catch(() => { tryRemote(); });
+} else tryRemote();
+})();
+</script>

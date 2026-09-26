@@ -1,18 +1,25 @@
 # -*- coding: utf-8 -*-
-"""ヘックス・アリーナ（オートバトル）メイン画面"""
+"""ヘックス・アリーナ（オートバトル）メイン画面
+
+3D表示は Panda3D、文字やボタンなどの画面上の部品は pygame で描いて 3D の上に重ねています。
+"""
 import math
 import os
 import queue
 import sys
 import threading
+import time
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 import pygame
 
-from data import (UNITS, CREEPS, TRAITS, TRAIT_ORDER, COST_COLORS, SHOP_ODDS, MAX_LEVEL, BENCH_SIZE,
-                  SHOP_SIZE, VERSION, GAME_TITLE, ARCH_NAME, compute_traits, base_stats, ability_desc,
-                  ability_value, trait_desc, sell_value, pve_board, unit_info)
-from combat import CombatSim, MOVE_TIME
+from panda3d.core import loadPrcFileData
+
+import data
+from data import (UNITS, TRAITS, COST_COLORS, SHOP_ODDS, MAX_LEVEL, BENCH_SIZE, SHOP_SIZE, VERSION,
+                  GAME_TITLE, ARCH_NAME, compute_traits, base_stats, ability_desc, ability_value, trait_desc,
+                  sell_value, pve_board, unit_info, resource_path)
+from combat import MOVE_TIME, CombatSim
 from game import Game
 import net
 
@@ -28,13 +35,10 @@ RED = (230, 80, 80)
 GREEN = (90, 205, 120)
 OWN = (80, 190, 255)
 ENEMY = (240, 90, 90)
+SCOUT = (200, 170, 255)
 TIER_COLORS = [(62, 66, 82), (176, 118, 70), (170, 182, 198), (240, 200, 70)]
 STAR_COLORS = {1: (200, 200, 210), 2: (220, 225, 235), 3: (255, 210, 60)}
-
-
-def resource_path(rel):
-    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base, rel)
+PANEL_A = PANEL + (228,)
 
 
 # ---------------- 文字描画 ----------------
@@ -72,8 +76,18 @@ def draw_text(surf, s, pos, size=16, color=TEXT, anchor="topleft"):
     return r
 
 
+def draw_text_shadow(surf, s, pos, size=16, color=TEXT, anchor="topleft"):
+    """3Dの上に出す文字（黒いふち付き）"""
+    sh = text_surf(s, size, (0, 0, 0))
+    r = sh.get_rect(**{anchor: (int(pos[0]), int(pos[1]))})
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (1, 1)):
+        surf.blit(sh, r.move(dx, dy))
+    surf.blit(text_surf(s, size, color), r)
+    return r
+
+
 def lighten(c, k=25):
-    return tuple(min(255, v + k) for v in c)
+    return tuple(min(255, v + k) for v in c[:3]) + tuple(c[3:])
 
 
 def get_clipboard():
@@ -85,11 +99,28 @@ def get_clipboard():
         r.destroy()
         return s
     except Exception:
-        pass
-    try:
-        return pygame.scrap.get_text() or ""
-    except Exception:
         return ""
+
+
+# ---------------- 入力（Panda3Dの入力を pygame 風のイベントに変換） ----------------
+class Ev:
+    def __init__(self, type, **kw):
+        self.type = type
+        self.pos = kw.get("pos", (0, 0))
+        self.button = kw.get("button", 0)
+        self.key = kw.get("key", 0)
+        self.mod = kw.get("mod", 0)
+        self.text = kw.get("text", "")
+
+
+KEYMAP = {"escape": pygame.K_ESCAPE, "space": pygame.K_SPACE, "backspace": pygame.K_BACKSPACE,
+          "enter": pygame.K_RETURN, "home": pygame.K_HOME}
+
+APP = None
+
+
+def mouse_pos():
+    return APP.mouse if APP else (0, 0)
 
 
 # ---------------- 部品 ----------------
@@ -129,8 +160,6 @@ class TextBox:
     def handle(self, e):
         if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
             self.active = self.rect.collidepoint(e.pos)
-            if self.active:
-                pygame.key.set_text_input_rect(self.rect)
         elif self.active and e.type == pygame.TEXTINPUT:
             self.text = (self.text + e.text)[:self.maxlen]
         elif self.active and e.type == pygame.KEYDOWN:
@@ -146,13 +175,13 @@ class TextBox:
             draw_text(surf, self.text, (self.rect.x + 12, self.rect.centery), 22, TEXT, "midleft")
         else:
             draw_text(surf, self.placeholder, (self.rect.x + 12, self.rect.centery), 18, SUB, "midleft")
-        if self.active and (pygame.time.get_ticks() // 500) % 2 == 0:
+        if self.active and int(time.monotonic() * 2) % 2 == 0:
             w = text_surf(self.text, 22, TEXT).get_width() if self.text else 0
             x = self.rect.x + 14 + w
             pygame.draw.line(surf, TEXT, (x, self.rect.y + 10), (x, self.rect.bottom - 10), 2)
 
 
-def draw_panel(surf, rect, color=PANEL, radius=10):
+def draw_panel(surf, rect, color=PANEL_A, radius=10):
     pygame.draw.rect(surf, color, rect, border_radius=radius)
 
 
@@ -168,7 +197,7 @@ def draw_tooltip(surf, lines, pos):
     if y + h > H - 4:
         y = H - h - 4
     rect = pygame.Rect(x, y, w, h)
-    pygame.draw.rect(surf, (12, 14, 20), rect, border_radius=8)
+    pygame.draw.rect(surf, (12, 14, 20, 245), rect, border_radius=8)
     pygame.draw.rect(surf, (100, 110, 140), rect, 2, border_radius=8)
     yy = y + pad
     for t, s, c in lines:
@@ -176,42 +205,13 @@ def draw_tooltip(surf, lines, pos):
         yy += s + 8
 
 
-# ---------------- 盤面の座標 ----------------
-R = 36
-SQ3 = math.sqrt(3)
-BX0 = 640 - SQ3 * R * 3.25
-BY0 = 50 + R
+def shade_screen(surf, alpha=170):
+    sh = pygame.Surface((W, H), pygame.SRCALPHA)
+    sh.fill((0, 0, 0, alpha))
+    surf.blit(sh, (0, 0))
 
 
-def cell_center(r, c):
-    return (BX0 + SQ3 * R * (c + 0.5 * (r & 1)), BY0 + 1.5 * R * r)
-
-
-HEX_POLY = {}
-for _r in range(8):
-    for _c in range(7):
-        _cx, _cy = cell_center(_r, _c)
-        HEX_POLY[(_r, _c)] = [(_cx + (R - 2) * math.cos(math.radians(a)), _cy + (R - 2) * math.sin(math.radians(a)))
-                              for a in (-90, -30, 30, 90, 150, 210)]
-
-
-def cell_at(pos):
-    best, bd = None, R * 0.95
-    for (r, c) in HEX_POLY:
-        cx, cy = cell_center(r, c)
-        d = math.hypot(pos[0] - cx, pos[1] - cy)
-        if d < bd:
-            bd, best = d, (r, c)
-    return best
-
-
-BENCH_X0, BENCH_Y, SLOT, SLOT_GAP = 346, 512, 60, 6
-
-
-def bench_rect(i):
-    return pygame.Rect(BENCH_X0 + i * (SLOT + SLOT_GAP), BENCH_Y, SLOT, SLOT)
-
-
+# ---------------- 画面の配置 ----------------
 def card_rect(i):
     return pygame.Rect(430 + i * 124, 598, 118, 114)
 
@@ -228,29 +228,8 @@ def player_rect(i):
     return pygame.Rect(1066, 48 + i * 62, 208, 58)
 
 
-def draw_token(surf, x, y, uid, star, border, hp=None, mana=None, dim=False, rad=22):
-    info = unit_info(uid)
-    cost = info.get("cost", 0)
-    col = COST_COLORS.get(cost, COST_COLORS[0])
-    if dim:
-        col = tuple(int(v * 0.5) for v in col)
-        border = tuple(int(v * 0.5) for v in border)
-    dark = tuple(int(v * 0.45) for v in col)
-    x, y = int(x), int(y)
-    pygame.draw.circle(surf, dark, (x, y), rad)
-    pygame.draw.circle(surf, col, (x, y), rad, 3)
-    pygame.draw.circle(surf, border, (x, y), rad + 3, 2)
-    draw_text(surf, info["name"][:2], (x, y), 15, SUB if dim else TEXT, "center")
-    draw_text(surf, "★" * star, (x, y - rad - 7), 12, STAR_COLORS[star], "center")
-    if hp is not None:
-        bw = rad * 2 + 4
-        bx = x - bw // 2
-        by = y + rad + 4
-        pygame.draw.rect(surf, (40, 20, 20), (bx, by, bw, 5))
-        pygame.draw.rect(surf, GREEN if border == OWN else RED, (bx, by, int(bw * max(0, min(1, hp))), 5))
-        if mana is not None:
-            pygame.draw.rect(surf, (20, 24, 40), (bx, by + 6, bw, 3))
-            pygame.draw.rect(surf, (90, 150, 255), (bx, by + 6, int(bw * max(0, min(1, mana))), 3))
+def fmt_num(v):
+    return f"{v:g}" if isinstance(v, float) else str(v)
 
 
 def unit_tooltip(uid, star, cu=None):
@@ -258,7 +237,7 @@ def unit_tooltip(uid, star, cu=None):
     lines = [(f"{info['name']}  {'★' * star}", 20, STAR_COLORS[star])]
     bs = base_stats(uid, star)
     if uid in UNITS:
-        lines.append((f"{info['cost']}コスト ／ {ARCH_NAME[info['arch']]} ／ " + "・".join(info["traits"]), 15, SUB))
+        lines.append((f"{info['cost']}コスト ／ {ARCH_NAME.get(info['arch'], '')} ／ " + "・".join(info["traits"]), 15, SUB))
     else:
         lines.append(("モンスター", 15, SUB))
     if cu is not None:
@@ -266,7 +245,7 @@ def unit_tooltip(uid, star, cu=None):
         lines.append((f"攻撃力 {int(cu.atk)}  攻速 {cu.as_base:.2f}  射程 {cu.range}  防御 {int(cu.armor)}/{int(cu.mr)}", 15, TEXT))
     else:
         lines.append((f"HP {int(bs['hp'])}  攻撃力 {int(bs['atk'])}  攻速 {bs['as']:.2f}  射程 {bs['rng']}", 15, TEXT))
-        lines.append((f"物理防御 {bs['armor']}  魔法防御 {bs['mr']}  マナ {bs['mana']}", 15, TEXT))
+        lines.append((f"物理防御 {int(bs['armor'])}  魔法防御 {int(bs['mr'])}  マナ {int(bs['mana'])}", 15, TEXT))
     if uid in UNITS:
         ab = info["ability"]
         lines.append((f"スキル：{info['ability_name']}", 16, ACCENT))
@@ -385,6 +364,7 @@ class CombatView:
         self.flip = flip
         self.elapsed = 0.0
         self.fx = []
+        self.new_events = []
 
     def update(self, dt):
         self.elapsed += dt
@@ -392,17 +372,21 @@ class CombatView:
         while not self.sim.done and self.sim.t < self.elapsed and n < 300:
             for e in self.sim.step():
                 self.fx.append([self.sim.t, e])
+                self.new_events.append(e)
             n += 1
         self.fx = [f for f in self.fx if self.sim.t - f[0] < 0.9]
 
     def disp(self, r, c):
         return (7 - r, 6 - c) if self.flip else (r, c)
 
-    def pos(self, u):
-        a = cell_center(*self.disp(u.pr, u.pc))
-        b = cell_center(*self.disp(u.r, u.c))
+    def pos3(self, u):
+        """(x, y, 跳ねる高さ)"""
+        from world3d import cell_world
+        a = cell_world(*self.disp(u.pr, u.pc))
+        b = cell_world(*self.disp(u.r, u.c))
         f = 1.0 if u.mt < 0 else min(1.0, (self.sim.t - u.mt) / MOVE_TIME)
-        return (a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f)
+        hop = 0.25 * math.sin(f * math.pi) if f < 1.0 else 0.0
+        return (a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, hop)
 
     @property
     def my_side(self):
@@ -416,6 +400,7 @@ class TitleScene:
     def __init__(self, app, msg=""):
         self.app = app
         self.msg = msg
+        app.restore_data()
         self.name = TextBox((490, 250, 300, 46), app.player_name, 10, "名前を入力")
         self.buttons = [
             Button((490, 320, 300, 52), "ひとりで遊ぶ（AI 7人と対戦）", self.solo),
@@ -423,7 +408,20 @@ class TitleScene:
             Button((490, 444, 300, 52), "部屋に入る", self.join),
             Button((490, 506, 300, 52), "遊び方", lambda: app.go(HelpScene(app))),
             Button((490, 568, 300, 52), "終了", self.quit),
+            Button((1010, 640, 250, 40), "最新データを読み込む", self.reload, size=16),
         ]
+        self.showcase = self._pick_showcase()
+
+    def _pick_showcase(self):
+        seen, out = set(), []
+        for uid, u in sorted(UNITS.items(), key=lambda x: (-x[1]["cost"], x[0])):
+            if u["look"] not in seen:
+                seen.add(u["look"])
+                out.append(uid)
+        return out[:7]
+
+    def reload(self):
+        self.app.fetch_remote()
 
     def save_name(self):
         self.app.player_name = self.name.text.strip() or "プレイヤー"
@@ -441,7 +439,7 @@ class TitleScene:
         self.app.go(JoinScene(self.app))
 
     def quit(self):
-        self.app.running = False
+        self.app.quit()
 
     def handle(self, e):
         self.name.handle(e)
@@ -450,24 +448,49 @@ class TitleScene:
                 return
 
     def update(self, dt):
-        pass
+        if self.app.remote_changed:
+            self.app.remote_changed = False
+            self.app.restore_data()
+            self.showcase = self._pick_showcase()
+
+    def sync3d(self, w):
+        from world3d import cell_world
+        w.auto_orbit = True
+        w.begin_sync()
+        for i, uid in enumerate(self.showcase):
+            x, y = cell_world(5, i)
+            a = w.actor(("show", i), uid, UNITS[uid], 2 if i == 3 else 1, OWN)
+            a.place(x, y, 0)
+        for i, (cid, r, c) in enumerate((("c5", 1, 3), ("c4", 2, 1), ("c3", 2, 5), ("c1", 2, 3))):
+            if cid in data.CREEPS:
+                x, y = cell_world(r, c)
+                a = w.actor(("showc", i), cid, data.CREEPS[cid], 1, ENEMY, True)
+                a.place(x, y, 180)
+        w.end_sync()
 
     def draw(self, s):
-        s.fill(BG)
-        for i in range(12):
-            x = 120 + i * 95
-            pygame.draw.polygon(s, (26, 30, 42), [(x + 30 * math.cos(math.radians(a)), 120 + 30 * math.sin(math.radians(a)))
-                                                    for a in range(-90, 270, 60)], 2)
-        draw_text(s, GAME_TITLE, (640, 130), 56, GOLD, "center")
-        draw_text(s, "8人のオートバトル ／ ユニット60種・シナジー36種", (640, 190), 18, SUB, "center")
+        draw_panel(s, pygame.Rect(440, 80, 400, 560), (16, 18, 26, 215), 16)
+        draw_text_shadow(s, GAME_TITLE, (640, 130), 56, GOLD, "center")
+        draw_text(s, f"8人のオートバトル ／ ユニット{len(UNITS)}種・シナジー{len(TRAITS)}種", (640, 190), 16, SUB, "center")
         draw_text(s, "あなたの名前", (490, 226), 16, SUB)
         self.name.draw(s)
-        m = pygame.mouse.get_pos()
+        m = mouse_pos()
         for b in self.buttons:
             b.draw(s, m)
         if self.msg:
-            draw_text(s, self.msg, (640, 650), 18, RED, "center")
-        draw_text(s, f"ver {VERSION}", (1270, 710), 14, SUB, "bottomright")
+            draw_text_shadow(s, self.msg, (640, 660), 18, RED, "center")
+        info = f"データ：{data.DATA_SOURCE}　{data.CURRENT.get('data_version', '')}"
+        draw_text_shadow(s, info, (1260, 692), 14, SUB, "bottomright")
+        if self.app.fetching:
+            draw_text_shadow(s, "GitHubから最新データを取得中…", (1260, 632), 14, ACCENT, "bottomright")
+        y = 6
+        errs = data.LOAD_ERRORS[-3:]
+        if data.REMOTE_ERROR and not self.app.fetching:
+            errs = [data.REMOTE_ERROR] + errs
+        for er in errs:
+            draw_text_shadow(s, er, (1270, y), 14, RED, "topright")
+            y += 20
+        draw_text_shadow(s, f"ver {VERSION}", (1270, 714), 13, SUB, "bottomright")
 
 
 class HelpScene:
@@ -475,7 +498,7 @@ class HelpScene:
     LINES = [
         "【目的】8人で戦い、最後の1人まで生き残れば優勝です。",
         "1. 画面下のショップのカードをクリックしてユニットを買います。",
-        "2. 買ったユニットはベンチ（盤面の下の9マス）に入ります。ドラッグして盤面の下半分に並べます。",
+        "2. 買ったユニットはベンチ（盤面の手前の9マス）に入ります。ドラッグして盤面の手前半分に並べます。",
         "3. 盤面に置ける数は「レベル」と同じです。経験値を買う（Fキー）とレベルが上がります。",
         "4. 同じユニットを3体集めると★2、★2を3体で★3に自動で強化されます。",
         "5. 左の一覧は「シナジー」。同じ特性のユニットを揃えるとボーナスが付きます。",
@@ -484,13 +507,14 @@ class HelpScene:
         "8. 売却：ユニットをショップ欄へドラッグ、またはマウスを合わせてEキー。",
         "",
         "【キー】 D＝リロール(2G)  F＝経験値購入(4G)  E＝売却  Space＝準備OK  Esc＝メニュー",
+        "【カメラ】 右ドラッグ＝回す　ホイール＝寄る・引く　Home＝元に戻す",
         "【対戦】ホストが「部屋を作る」→表示された部屋コードを伝える→他の人は「部屋に入る」で入力。",
         "　　　 空いた席はAIが入ります。途中で切断した人の席もAIが引き継ぎます。",
     ]
 
     def __init__(self, app):
         self.app = app
-        self.back = Button((540, 630, 200, 50), "戻る", lambda: app.go(TitleScene(app)))
+        self.back = Button((540, 640, 200, 50), "戻る", lambda: app.go(TitleScene(app)))
 
     def handle(self, e):
         self.back.handle(e)
@@ -501,13 +525,13 @@ class HelpScene:
         pass
 
     def draw(self, s):
-        s.fill(BG)
-        draw_text(s, "遊び方", (640, 60), 36, GOLD, "center")
-        y = 120
+        s.fill(BG + (225,))
+        draw_text(s, "遊び方", (640, 50), 36, GOLD, "center")
+        y = 105
         for ln in self.LINES:
-            draw_text(s, ln, (120, y), 19, TEXT)
+            draw_text(s, ln, (110, y), 19, TEXT)
             y += 36
-        self.back.draw(s, pygame.mouse.get_pos())
+        self.back.draw(s, mouse_pos())
 
 
 # ---------------- 画面：ホストの待機部屋 ----------------
@@ -581,7 +605,8 @@ class HostLobbyScene:
                     continue
                 nm = str(msg.get("name", "ゲスト"))[:10] or "ゲスト"
                 self.names[cid] = nm
-                self.server.send(cid, {"t": "welcome"})
+                # ホストのユニットデータを配る（全員が同じ数値で戦闘を再生するため）
+                self.server.send(cid, {"t": "welcome", "data": data.CURRENT, "src": data.DATA_SOURCE})
                 changed = True
             elif t == "_disconnect":
                 if cid in self.names:
@@ -591,10 +616,10 @@ class HostLobbyScene:
             self.server.broadcast({"t": "lobby", "players": self.lobby_list()})
 
     def draw(self, s):
-        s.fill(BG)
+        s.fill(BG + (215,))
         draw_text(s, "部屋を作りました", (640, 50), 34, GOLD, "center")
         if self.error:
-            draw_text(s, self.error, (640, 110), 18, RED, "center")
+            draw_text(s, self.error, (640, 620), 18, RED, "center")
         draw_panel(s, pygame.Rect(80, 100, 640, 510))
         draw_text(s, "参加する人に、下の「部屋コード」を伝えてください", (100, 115), 18, TEXT)
         y = 155
@@ -615,7 +640,8 @@ class HostLobbyScene:
         y += 10
         tips = ["※ 初回はWindowsの警告が出たら「アクセスを許可する」を押してください。",
                 f"※ ネット越しはルーターでTCP {net.PORT}番を開放するか、",
-                "　 Radmin VPN などの無料VPNツールを全員で使うのが簡単です（説明書参照）。"]
+                "　 Radmin VPN などの無料VPNツールを全員で使うのが簡単です（説明書参照）。",
+                f"※ 使うデータ：{data.DATA_SOURCE}（参加者にも自動で配られます）"]
         for tp in tips:
             draw_text(s, tp, (100, y), 15, SUB)
             y += 24
@@ -625,7 +651,7 @@ class HostLobbyScene:
             draw_text(s, f"{i + 1}. {nm}", (790, 160 + i * 44), 22, TEXT)
         for i in range(len(self.lobby_list()), 8):
             draw_text(s, f"{i + 1}. （AI）", (790, 160 + i * 44), 22, SUB)
-        m = pygame.mouse.get_pos()
+        m = mouse_pos()
         for b in self.buttons:
             b.draw(s, m)
 
@@ -683,11 +709,11 @@ class JoinScene:
                 self.status = "接続できませんでした（コード・ホストの起動・ポート開放を確認）"
 
     def draw(self, s):
-        s.fill(BG)
+        s.fill(BG + (215,))
         draw_text(s, "部屋に入る", (640, 150), 36, GOLD, "center")
         draw_text(s, "ホストから聞いた部屋コードを入力してください（Ctrl+Vで貼り付け可）", (640, 250), 18, TEXT, "center")
         self.code.draw(s)
-        m = pygame.mouse.get_pos()
+        m = mouse_pos()
         for b in self.buttons:
             b.draw(s, m)
         if self.status:
@@ -702,6 +728,7 @@ class ClientLobbyScene:
         self.client = client
         self.players = []
         self.error = ""
+        self.data_note = ""
         self.back = Button((540, 620, 200, 52), "戻る", self.leave_to_title)
 
     def leave_to_title(self):
@@ -718,7 +745,15 @@ class ClientLobbyScene:
             except queue.Empty:
                 break
             t = msg.get("t")
-            if t == "lobby":
+            if t == "welcome":
+                if msg.get("data"):
+                    try:
+                        data.apply(msg["data"], "ホストのデータ")
+                        self.data_note = f"ホストのデータを受け取りました（{msg['data'].get('data_version', '')}）"
+                    except (ValueError, KeyError, TypeError) as ex:
+                        self.error = f"ホストのデータを読み込めませんでした：{ex}"
+                        self.client.close()
+            elif t == "lobby":
                 self.players = msg.get("players", [])
             elif t == "start":
                 self.app.go(GameScene(self.app, RemoteSession(self.client)))
@@ -733,7 +768,7 @@ class ClientLobbyScene:
                     self.error = "ホストとの接続が切れました"
 
     def draw(self, s):
-        s.fill(BG)
+        s.fill(BG + (215,))
         draw_text(s, "部屋に入りました", (640, 80), 34, GOLD, "center")
         draw_text(s, "ホストがゲームを開始するのを待っています…", (640, 130), 20, TEXT, "center")
         draw_panel(s, pygame.Rect(420, 170, 440, 420))
@@ -741,7 +776,9 @@ class ClientLobbyScene:
             draw_text(s, f"{i + 1}. {nm}", (450, 195 + i * 44), 22, TEXT)
         if self.error:
             draw_text(s, self.error, (640, 600), 18, RED, "center")
-        self.back.draw(s, pygame.mouse.get_pos())
+        elif self.data_note:
+            draw_text(s, self.data_note, (640, 600), 15, SUB, "center")
+        self.back.draw(s, mouse_pos())
 
 
 # ---------------- 画面：ゲーム本編 ----------------
@@ -761,16 +798,22 @@ class GameScene:
         self.last_result = None
         self.menu = False
         self.dead_dismissed = False
-        self.hover = None
+        self.shown = []          # [(actor, 種類, uid, star, 戦闘中ユニット)] 画面に出ているユニット
         self.menu_buttons = [Button((490, 300, 300, 52), "ゲームに戻る", self.close_menu),
                              Button((490, 368, 300, 52), "タイトルへ戻る（退出）", self.to_title)]
         self.dead_buttons = [Button((440, 400, 190, 52), "観戦を続ける", self.dismiss_dead),
                              Button((650, 400, 190, 52), "タイトルへ", self.to_title)]
         self.end_buttons = [Button((540, 620, 200, 52), "タイトルへ", self.to_title)]
         self.err_buttons = [Button((540, 400, 200, 52), "タイトルへ", self.to_title)]
+        app.world.auto_orbit = False
+        app.world.reset_camera()
 
     def leave(self):
         self.session.close()
+        self.app.world.clear_units()
+        self.app.world.clear_fx()
+        self.app.world.highlight()
+        self.app.world.reset_camera()
 
     def to_title(self):
         self.app.go(TitleScene(self.app))
@@ -810,26 +853,58 @@ class GameScene:
         if st["phase"] == "combat" and cb:
             if self.view is None or self.view.cid != cb["setup"]["cid"]:
                 self.view = CombatView(cb["setup"], cb["side"] == "b")
+                self.app.world.clear_fx()
         else:
             self.view = None
         if self.view:
             self.view.update(dt)
 
     # ---------- 位置の判定 ----------
+    def ground(self, pos):
+        return self.app.world.ground_at(self.app.to_ndc(pos))
+
+    def cell_at(self, pos):
+        return self.app.world.cell_at(self.ground(pos))
+
+    def bench_at(self, pos):
+        return self.app.world.bench_at(self.ground(pos))
+
     def shown_board(self):
         st = self.st
         if self.scout is not None:
             return st["players"][self.scout]["board"]
         return st["me"]["board"]
 
+    def nearest_shown(self, pos, kinds=None, rad=34):
+        """マウスに一番近いユニット（画面上の距離で判定）"""
+        best, bd = None, rad
+        for item in self.shown:
+            a, kind = item[0], item[1]
+            if kinds and kind[0] not in kinds:
+                continue
+            p = self.app.to_px(self.app.world.project((a.x, a.y, a.model.height * 0.5 + a.lift)))
+            if p is None:
+                continue
+            d = math.hypot(pos[0] - p[0], pos[1] - p[1])
+            if d < bd:
+                bd, best = d, item
+        return best
+
     def unit_at(self, pos):
         """自分のユニット（ドラッグ可能なもの）"""
         st = self.st
-        for i in range(BENCH_SIZE):
-            if bench_rect(i).collidepoint(pos) and st["me"]["bench"][i]:
-                return ["bench", i], st["me"]["bench"][i]
-        if st["phase"] == "planning" and self.scout is None:
-            cell = cell_at(pos)
+        planning = st["phase"] == "planning" and self.scout is None
+        item = self.nearest_shown(pos, ("bench", "board") if planning else ("bench",))
+        if item:
+            kind = item[1]
+            if kind[0] == "bench":
+                return ["bench", kind[1]], st["me"]["bench"][kind[1]]
+            return ["board", kind[1], kind[2]], st["me"]["board"][kind[1]][kind[2]]
+        i = self.bench_at(pos)
+        if i is not None and st["me"]["bench"][i]:
+            return ["bench", i], st["me"]["bench"][i]
+        if planning:
+            cell = self.cell_at(pos)
             if cell and cell[0] >= 4:
                 u = st["me"]["board"][cell[0] - 4][cell[1]]
                 if u:
@@ -837,14 +912,14 @@ class GameScene:
         return None, None
 
     def drop_target(self, pos):
-        for i in range(BENCH_SIZE):
-            if bench_rect(i).collidepoint(pos):
-                return ["bench", i]
-        cell = cell_at(pos)
-        if cell and cell[0] >= 4:
-            return ["board", cell[0] - 4, cell[1]]
         if SHOP_AREA.collidepoint(pos):
             return ["sell"]
+        i = self.bench_at(pos)
+        if i is not None:
+            return ["bench", i]
+        cell = self.cell_at(pos)
+        if cell and cell[0] >= 4:
+            return ["board", cell[0] - 4, cell[1]]
         return None
 
     # ---------- 入力 ----------
@@ -876,6 +951,8 @@ class GameScene:
         if e.type == pygame.KEYDOWN:
             if e.key == pygame.K_ESCAPE:
                 self.menu = True
+            elif e.key == pygame.K_HOME:
+                self.app.world.reset_camera()
             elif not me["alive"]:
                 return
             elif e.key == pygame.K_d:
@@ -885,7 +962,7 @@ class GameScene:
             elif e.key == pygame.K_SPACE:
                 self.act({"t": "ready"})
             elif e.key == pygame.K_e:
-                loc, u = self.unit_at(pygame.mouse.get_pos())
+                loc, u = self.unit_at(mouse_pos())
                 if loc:
                     self.act({"t": "sell", "loc": loc})
             return
@@ -927,22 +1004,167 @@ class GameScene:
             else:
                 self.act({"t": "move", "src": src, "dst": tgt})
 
+    # ---------- 3D表示の同期 ----------
+    def sync3d(self, w):
+        from world3d import cell_world, bench_world
+        self.shown = []
+        st = self.st
+        w.begin_sync()
+        if not st:
+            w.end_sync()
+            return
+        me = st["me"]
+        mouse = mouse_pos()
+        # ベンチ
+        for i in range(BENCH_SIZE):
+            u = me["bench"][i]
+            if not u or (self.drag and self.drag["loc"] == ["bench", i]):
+                continue
+            a = w.actor(("bench", i), u[0], unit_info(u[0]), u[1], OWN)
+            x, y = bench_world(i)
+            a.place(x, y, 0)
+            self.shown.append((a, ("bench", i), u[0], u[1], None))
+        if self.view and self.scout is None:
+            self._sync_combat(w)
+        else:
+            board = self.shown_board()
+            team = OWN if self.scout is None else SCOUT
+            for r in range(4):
+                for c in range(7):
+                    u = board[r][c]
+                    if not u or (self.scout is None and self.drag and self.drag["loc"] == ["board", r, c]):
+                        continue
+                    a = w.actor(("board", r, c, self.scout), u[0], unit_info(u[0]), u[1], team)
+                    x, y = cell_world(4 + r, c)
+                    a.place(x, y, 0)
+                    self.shown.append((a, ("board", r, c), u[0], u[1], None))
+            if self.scout is None and st["phase"] == "planning" and st["pve"]:
+                for i, (uid, star, r, c) in enumerate(pve_board(st["round"])):
+                    if uid not in data.CREEPS:
+                        continue
+                    a = w.actor(("pve", i, st["round"]), uid, data.CREEPS[uid], star, ENEMY, True)
+                    x, y = cell_world(3 - r, 6 - c)
+                    a.place(x, y, 180)
+                    a.set_dim(True)
+                    self.shown.append((a, ("pve", i), uid, star, None))
+        # ドラッグ中のユニット
+        hl_cells, hl_bench = (), ()
+        if self.drag:
+            u = self.drag["u"]
+            g = self.ground(mouse)
+            if g is not None:
+                a = w.actor(("drag",), u[0], unit_info(u[0]), u[1], OWN)
+                a.place(g[0], g[1], 0, lift=0.5)
+            cell = self.cell_at(mouse)
+            if cell and cell[0] >= 4:
+                hl_cells = (cell,)
+            b = self.bench_at(mouse)
+            if b is not None:
+                hl_bench = (b,)
+        w.highlight(hl_cells, hl_bench)
+        w.end_sync()
+
+    def _sync_combat(self, w):
+        v = self.view
+        now = w.now
+        acts = {}
+        for u in v.sim.units:
+            info = unit_info(u.uid)
+            mine = u.side == v.my_side
+            a = w.actor(("cb", v.cid, u.idx), u.uid, info, u.star, OWN if mine else ENEMY, u.uid not in UNITS)
+            acts[u.idx] = a
+            x, y, hop = v.pos3(u)
+            tg = u.target
+            if tg is not None and tg.alive:
+                tx, ty, _ = v.pos3(tg)
+                want = math.degrees(math.atan2(-(tx - x), ty - y))
+            else:
+                want = 0.0 if mine else 180.0
+            dh = (want - a.heading + 540) % 360 - 180
+            a.place(x, y, a.heading + dh * 0.25, hop=hop)
+            if not u.alive:
+                if a.dead_t is None:
+                    a.dead_t = now
+            elif a.dead_t is not None:
+                a.revive()
+            a.set_shield(u.alive and v.sim.shield_total(u) > 1)
+            if u.alive:
+                self.shown.append((a, ("cb", u.idx), u.uid, u.star, u))
+
+        def chest(a):
+            return (a.x, a.y, a.model.height * 0.55)
+
+        for e in v.new_events:
+            kind = e[0]
+            if kind == "atk":
+                a, b = acts.get(e[1]), acts.get(e[2])
+                if a is None or b is None:
+                    continue
+                a.t_attack = now
+                if e[3]:
+                    col = (255, 240, 170)
+                    info = UNITS.get(v.sim.units[e[1]].uid)
+                    if info and info["arch"] == "caster":
+                        col = (150, 190, 255)
+                    w.fx_projectile(chest(a), chest(b), col)
+            elif kind == "dmg":
+                b = acts.get(e[1])
+                if b is not None:
+                    b.t_hit = now
+                    if e[3] in ("phys", "magic") and e[2] > 0:
+                        w.fx_burst(chest(b), (255, 170, 110) if e[3] == "phys" else (130, 170, 255), n=3, dur=0.35)
+            elif kind == "heal":
+                b = acts.get(e[1])
+                if b is not None and e[2] >= 20:
+                    w.fx_burst((b.x, b.y, 0.3), (120, 240, 140), n=4, dur=0.6, up=1.6, spread=0.3)
+            elif kind == "cast":
+                a = acts.get(e[1])
+                if a is None:
+                    continue
+                a.t_cast = now
+                typ = e[2]
+                col = {"heal": (120, 240, 140), "aura_heal": (120, 240, 140), "shield": (230, 230, 255),
+                       "taunt": (255, 200, 120), "frenzy": (255, 120, 80), "buff_team": (255, 220, 100),
+                       "meteor": (255, 110, 60), "blast": (255, 140, 70), "quake": (220, 180, 110),
+                       "chain": (140, 200, 255), "stun": (200, 160, 255)}.get(typ, (120, 200, 255))
+                w.fx_ring((a.x, a.y), col, size=2.2 if typ in ("aura_heal", "buff_team", "quake", "taunt") else 1.4)
+                tg = v.sim.units[e[1]].target
+                if typ in ("meteor", "blast") and tg is not None and tg.idx in acts:
+                    t = acts[tg.idx]
+                    w.fx_ring((t.x, t.y), col, size=3.5 if typ == "meteor" else 2.2, dur=0.6)
+                    w.fx_burst((t.x, t.y, 0.4), col, n=10, dur=0.6, up=1.5, spread=1.2)
+                elif typ in ("strike", "stun", "snipe", "drain", "leap", "chain") and tg is not None and tg.idx in acts:
+                    w.fx_projectile(chest(a), chest(acts[tg.idx]), col, dur=0.2, r=0.18)
+                elif typ in ("shield", "taunt"):
+                    w.fx_bubble((a.x, a.y, 0.6), col)
+            elif kind == "die":
+                a = acts.get(e[1])
+                if a is not None:
+                    a.dead_t = now
+                    w.fx_burst(chest(a), (200, 200, 220), n=8, dur=0.6)
+            elif kind == "revive":
+                a = acts.get(e[1])
+                if a is not None:
+                    a.revive()
+                    w.fx_burst(chest(a), (220, 200, 255), n=10, dur=0.8, up=1.5)
+        v.new_events = []
+
     # ---------- 描画 ----------
     def draw(self, s):
-        s.fill(BG)
         st = self.st
         if not st:
+            s.fill(BG + (200,))
             draw_text(s, "ホストからの情報を待っています…", (640, 360), 24, TEXT, "center")
             if self.session.error:
                 self.draw_overlay(s, self.session.error, "", self.err_buttons)
             return
-        mouse = pygame.mouse.get_pos()
-        self.hover = None
+        mouse = mouse_pos()
+        w = self.app.world
         tips = None
         me = st["me"]
 
         # 上部バー
-        draw_panel(s, pygame.Rect(0, 0, W, 40), PANEL, 0)
+        draw_panel(s, pygame.Rect(0, 0, W, 40), PANEL_A, 0)
         kind = "モンスター戦" if st["pve"] else "対人戦"
         draw_text(s, f"ラウンド {st['round']}  ・ {kind}", (12, 20), 18, TEXT, "midleft")
         ph = {"planning": "準備フェーズ", "combat": "戦闘フェーズ", "end": "ゲーム終了"}[st["phase"]]
@@ -951,83 +1173,57 @@ class GameScene:
         odds = SHOP_ODDS[me["level"]]
         x = 1270
         for ci in range(5, 0, -1):
-            r = draw_text(s, f"{odds[ci - 1]}%", (x, 20), 15, COST_COLORS[ci], "midright")
+            r = draw_text(s, f"{fmt_num(odds[ci - 1])}%", (x, 20), 15, COST_COLORS[ci], "midright")
             x = r.left - 10
         draw_text(s, "出現率", (x, 20), 14, SUB, "midright")
         if self.view:
             opp = self.view.setup["b" if self.view.my_side == "a" else "a"]["name"]
             draw_text(s, f"VS {opp}", (330, 20), 18, ENEMY, "midleft")
 
-        # 盤面
         planning = st["phase"] == "planning"
-        for (r, c), poly in HEX_POLY.items():
-            own_half = r >= 4
-            col = (44, 52, 72) if own_half else (36, 38, 50)
-            if self.drag and own_half and cell_at(mouse) == (r, c):
-                col = (70, 90, 130)
-            pygame.draw.polygon(s, col, poly)
-            pygame.draw.polygon(s, (60, 68, 90), poly, 1)
+        # ユニットの頭上（★・HP・マナ）
+        for a, kind_, uid, star, cu in self.shown:
+            p = self.app.to_px(w.project(a.head_pos()))
+            if p is None:
+                continue
+            x, y = p
+            if cu is not None:
+                bw = 46
+                bx, by = int(x - bw / 2), int(y - 4)
+                mine = cu.side == self.view.my_side
+                pygame.draw.rect(s, (20, 10, 10, 230), (bx - 1, by - 1, bw + 2, 7))
+                pygame.draw.rect(s, GREEN if mine else RED, (bx, by, int(bw * max(0, min(1, cu.hp / cu.maxhp))), 5))
+                if cu.maxmana:
+                    pygame.draw.rect(s, (15, 18, 34, 230), (bx - 1, by + 6, bw + 2, 4))
+                    pygame.draw.rect(s, (90, 150, 255), (bx, by + 6, int(bw * max(0, min(1, cu.mana / cu.maxmana))), 3))
+                draw_text_shadow(s, "★" * star, (x, by - 9), 11, STAR_COLORS[star], "center")
+                if cu.stun_until > self.view.sim.t:
+                    draw_text_shadow(s, "スタン", (x, by - 24), 12, GOLD, "center")
+            else:
+                draw_text_shadow(s, "★" * star, (x, y - 2), 12, STAR_COLORS[star], "center")
         if self.view and self.scout is None:
+            self.draw_fx(s, self.view)
             v = self.view
-            for u in v.sim.units:
-                if not u.alive:
-                    continue
-                x, y = v.pos(u)
-                mine = u.side == v.my_side
-                draw_token(s, x, y, u.uid, u.star, OWN if mine else ENEMY, u.hp / u.maxhp,
-                           (u.mana / u.maxmana) if u.maxmana else None)
-                if u.shields and v.sim.shield_total(u) > 1:
-                    pygame.draw.circle(s, (220, 220, 240), (int(x), int(y)), 27, 2)
-                if u.stun_until > v.sim.t:
-                    draw_text(s, "スタン", (x, y - 34), 12, GOLD, "center")
-                if math.hypot(mouse[0] - x, mouse[1] - y) < 24:
-                    tips = unit_tooltip(u.uid, u.star, u)
-            self.draw_fx(s, v)
             if v.sim.done:
                 won = v.sim.winner == v.my_side
                 txt = "勝利！" if won else ("引き分け" if v.sim.winner == "draw" else "敗北…")
-                draw_text(s, txt, (640, 280), 54, GOLD if won else RED, "center")
+                draw_text_shadow(s, txt, (640, 250), 60, GOLD if won else RED, "center")
         else:
-            board = self.shown_board()
-            border = OWN if self.scout is None else (200, 170, 255)
-            for r in range(4):
-                for c in range(7):
-                    u = board[r][c]
-                    if not u:
-                        continue
-                    if self.drag and self.drag["loc"] == ["board", r, c]:
-                        continue
-                    x, y = cell_center(4 + r, c)
-                    draw_token(s, x, y, u[0], u[1], border)
-                    if math.hypot(mouse[0] - x, mouse[1] - y) < 24:
-                        tips = unit_tooltip(u[0], u[1])
             if self.scout is not None:
-                draw_text(s, f"{st['players'][self.scout]['name']} の盤面を見ています（右の一覧をもう一度クリックで戻る）",
-                          (640, 140), 17, (200, 170, 255), "center")
+                draw_text_shadow(s, f"{st['players'][self.scout]['name']} の盤面を見ています（右の一覧をもう一度クリックで戻る）",
+                                 (640, 60), 17, SCOUT, "center")
             elif planning and st["pve"]:
-                for uid, star, r, c in pve_board(st["round"]):
-                    x, y = cell_center(3 - r, 6 - c)
-                    draw_token(s, x, y, uid, star, ENEMY, dim=True)
-                    if math.hypot(mouse[0] - x, mouse[1] - y) < 24:
-                        tips = unit_tooltip(uid, star)
-                draw_text(s, "次の相手：モンスター", (640, 140), 17, SUB, "center")
+                draw_text_shadow(s, "次の相手：モンスター", (640, 60), 17, SUB, "center")
             elif planning:
-                draw_text(s, "相手の陣地（戦闘開始時に対戦相手が決まります）", (640, 140), 16, SUB, "center")
+                draw_text_shadow(s, "相手の陣地（戦闘開始時に対戦相手が決まります）", (640, 60), 16, SUB, "center")
             if planning and self.scout is None:
                 cnt = sum(1 for row in me["board"] for u in row if u)
                 col = GOLD if cnt < me["level"] else SUB
-                draw_text(s, f"盤面 {cnt} / {me['level']} 体", (640, 505), 15, col, "midbottom")
-
-        # ベンチ
-        for i in range(BENCH_SIZE):
-            rc = bench_rect(i)
-            hov = self.drag and rc.collidepoint(mouse)
-            pygame.draw.rect(s, (60, 72, 100) if hov else PANEL, rc, border_radius=8)
-            u = me["bench"][i]
-            if u and not (self.drag and self.drag["loc"] == ["bench", i]):
-                draw_token(s, rc.centerx, rc.centery + 4, u[0], u[1], OWN)
-                if rc.collidepoint(mouse):
-                    tips = unit_tooltip(u[0], u[1])
+                draw_text_shadow(s, f"盤面 {cnt} / {me['level']} 体", (640, 584), 15, col, "midbottom")
+        if not self.drag:
+            item = self.nearest_shown(mouse, rad=30)
+            if item:
+                tips = unit_tooltip(item[2], item[3], item[4])
 
         # シナジー一覧
         uids = [u[0] for row in self.shown_board() for u in row if u]
@@ -1035,9 +1231,9 @@ class GameScene:
             side = self.view.my_side
             uids = [x[0] for x in self.view.setup[side]["units"]]
         traits = compute_traits(uids)
-        draw_text(s, "シナジー", (TRAIT_X + 4, TRAIT_Y - 2), 14, SUB)
+        draw_text_shadow(s, "シナジー", (TRAIT_X + 4, TRAIT_Y - 2), 14, SUB)
         y = TRAIT_Y + 20
-        for name, cnt, tier in traits[:18]:
+        for name, cnt, tier in traits[:17]:
             th = TRAITS[name]["thresholds"]
             if tier == 0:
                 tc = TIER_COLORS[0]
@@ -1048,7 +1244,7 @@ class GameScene:
             else:
                 tc = TIER_COLORS[2]
             rr = pygame.Rect(TRAIT_X, y, 212, TRAIT_H - 3)
-            pygame.draw.rect(s, PANEL, rr, border_radius=6)
+            pygame.draw.rect(s, PANEL_A, rr, border_radius=6)
             pygame.draw.rect(s, tc, (TRAIT_X, y, 34, TRAIT_H - 3), border_radius=6)
             draw_text(s, str(cnt), (TRAIT_X + 17, y + (TRAIT_H - 3) // 2), 16, (20, 20, 20) if tier else TEXT, "center")
             draw_text(s, name, (TRAIT_X + 42, y + (TRAIT_H - 3) // 2), 16, TEXT if tier else SUB, "midleft")
@@ -1058,7 +1254,7 @@ class GameScene:
                 tips = trait_tooltip(name, cnt, set(uids))
             y += TRAIT_H
         if not traits:
-            draw_text(s, "ユニットを盤面に置くと表示", (TRAIT_X + 4, y), 14, SUB)
+            draw_text_shadow(s, "ユニットを盤面に置くと表示", (TRAIT_X + 4, y), 14, SUB)
 
         # 所持金・レベル
         draw_panel(s, pygame.Rect(8, 592, 216, 122))
@@ -1078,7 +1274,7 @@ class GameScene:
         # ボタン
         for rect, label, enabled in ((BTN_XP, "経験値を買う 4G [F]", me["gold"] >= 4 and me["level"] < MAX_LEVEL),
                                      (BTN_ROLL, "リロール 2G [D]", me["gold"] >= 2)):
-            col = PANEL2 if enabled else (32, 34, 42)
+            col = PANEL2 + (235,) if enabled else (32, 34, 42, 235)
             if enabled and rect.collidepoint(mouse):
                 col = lighten(col, 30)
             pygame.draw.rect(s, col, rect, border_radius=8)
@@ -1086,15 +1282,15 @@ class GameScene:
 
         # ショップ
         if self.drag:
-            pygame.draw.rect(s, (70, 40, 40), SHOP_AREA, border_radius=10)
+            pygame.draw.rect(s, (90, 40, 40, 235), SHOP_AREA, border_radius=10)
             u = self.drag["u"]
             draw_text(s, f"ここに置くと売却（+{sell_value(u[0], u[1])}G）", SHOP_AREA.center, 24, TEXT, "center")
         else:
             for i in range(SHOP_SIZE):
                 rc = card_rect(i)
                 uid = me["shop"][i]
-                if not uid:
-                    pygame.draw.rect(s, (24, 26, 34), rc, border_radius=8)
+                if not uid or uid not in UNITS:
+                    pygame.draw.rect(s, (24, 26, 34, 200), rc, border_radius=8)
                     continue
                 info = UNITS[uid]
                 cc = COST_COLORS[info["cost"]]
@@ -1102,7 +1298,7 @@ class GameScene:
                 bg = tuple(int(v * 0.30) for v in cc)
                 if rc.collidepoint(mouse) and can:
                     bg = lighten(bg, 25)
-                pygame.draw.rect(s, bg, rc, border_radius=8)
+                pygame.draw.rect(s, bg + (240,), rc, border_radius=8)
                 pygame.draw.rect(s, cc if can else (70, 70, 80), rc, 2, border_radius=8)
                 draw_text(s, info["name"], (rc.x + 8, rc.y + 6), 18, TEXT if can else SUB)
                 draw_text(s, f"{info['cost']}G", (rc.right - 8, rc.y + 8), 15, GOLD, "topright")
@@ -1119,13 +1315,12 @@ class GameScene:
         opp_pid = None
         if self.view:
             opp_pid = self.view.setup["b" if self.view.my_side == "a" else "a"]["pid"]
-        order = list(range(8))
-        for i in order:
+        for i in range(8):
             p = st["players"][i]
             rc = player_rect(i)
-            bg = PANEL
+            bg = PANEL_A
             if self.scout == i:
-                bg = (60, 50, 90)
+                bg = (60, 50, 90, 235)
             pygame.draw.rect(s, bg, rc, border_radius=8)
             if i == me["pid"]:
                 pygame.draw.rect(s, ACCENT, rc, 2, border_radius=8)
@@ -1137,7 +1332,8 @@ class GameScene:
                 draw_text(s, f"Lv{p['level']}", (rc.right - 10, rc.y + 6), 14, SUB, "topright")
                 pygame.draw.rect(s, (40, 22, 22), (rc.x + 10, rc.y + 34, 150, 12), border_radius=4)
                 hpc = GREEN if p["hp"] > 50 else (GOLD if p["hp"] > 25 else RED)
-                pygame.draw.rect(s, hpc, (rc.x + 10, rc.y + 34, int(150 * max(0, p["hp"]) / 100), 12), border_radius=4)
+                ratio = max(0, min(1, p["hp"] / max(1, data.START_HP)))
+                pygame.draw.rect(s, hpc, (rc.x + 10, rc.y + 34, int(150 * ratio), 12), border_radius=4)
                 draw_text(s, str(p["hp"]), (rc.right - 10, rc.y + 40), 15, TEXT, "midright")
             else:
                 draw_text(s, f"脱落 {p['placement']}位", (rc.x + 10, rc.y + 32), 15, SUB)
@@ -1145,38 +1341,35 @@ class GameScene:
                 tips = [(f"{p['name']}", 18, TEXT), ("クリックで盤面を見る", 14, SUB)]
 
         # 右下：固定・準備OK
-        lcol = (90, 70, 30) if me["locked"] else PANEL2
+        lcol = (90, 70, 30, 235) if me["locked"] else PANEL2 + (235,)
         if BTN_LOCK.collidepoint(mouse):
             lcol = lighten(lcol, 25)
         pygame.draw.rect(s, lcol, BTN_LOCK, border_radius=8)
         draw_text(s, "ショップ固定中" if me["locked"] else "ショップを固定", BTN_LOCK.center, 17, TEXT, "center")
         if planning:
-            rcol = (40, 110, 70) if me["ready"] else (50, 70, 110)
+            rcol = (40, 110, 70, 240) if me["ready"] else (50, 70, 110, 240)
             if BTN_READY.collidepoint(mouse):
                 rcol = lighten(rcol, 25)
             pygame.draw.rect(s, rcol, BTN_READY, border_radius=8)
             draw_text(s, "準備OK（待機中）" if me["ready"] else "準備OK [Space]", BTN_READY.center, 19, TEXT, "center")
         else:
-            pygame.draw.rect(s, (30, 32, 40), BTN_READY, border_radius=8)
+            pygame.draw.rect(s, (30, 32, 40, 235), BTN_READY, border_radius=8)
             draw_text(s, "戦闘中…", BTN_READY.center, 18, SUB, "center")
 
         # ログ
         y = 555
         for ln in st.get("log", [])[-2:]:
-            draw_text(s, ln, (1270, y), 12, SUB, "topright")
+            draw_text_shadow(s, ln, (1270, y), 12, SUB, "topright")
             y += 16
 
-        # ドラッグ中
         if self.drag:
-            u = self.drag["u"]
-            draw_token(s, mouse[0], mouse[1], u[0], u[1], OWN)
             tips = None
 
         # トースト
         if self.toast_t > 0 and self.toast:
             t = text_surf(self.toast, 22, TEXT)
-            rc = t.get_rect(center=(640, 72)).inflate(30, 14)
-            pygame.draw.rect(s, (10, 12, 18), rc, border_radius=10)
+            rc = t.get_rect(center=(640, 92)).inflate(30, 14)
+            pygame.draw.rect(s, (10, 12, 18, 240), rc, border_radius=10)
             pygame.draw.rect(s, GOLD, rc, 2, border_radius=10)
             s.blit(t, t.get_rect(center=rc.center))
 
@@ -1196,78 +1389,138 @@ class GameScene:
     def draw_fx(self, s, v):
         t = v.sim.t
         units = v.sim.units
+        w = self.app.world
+        acts = {k[2]: a for k, a in w.actors.items() if k[0] == "cb" and k[1] == v.cid}
+
+        def head(i, up=0.0):
+            a = acts.get(i)
+            if a is None:
+                return None
+            return self.app.to_px(w.project((a.x, a.y, a.model.height + 0.3 + up)))
+
         for ft, e in v.fx:
             age = t - ft
             kind = e[0]
-            if kind == "atk" and age < 0.12:
-                a = v.pos(units[e[1]])
-                b = v.pos(units[e[2]])
-                if e[3]:
-                    k = min(1.0, age / 0.12)
-                    px = a[0] + (b[0] - a[0]) * k
-                    py = a[1] + (b[1] - a[1]) * k
-                    pygame.draw.circle(s, (255, 240, 180), (int(px), int(py)), 4)
-                else:
-                    pygame.draw.line(s, (255, 255, 255), a, b, 2)
-            elif kind == "dmg" and age < 0.7:
-                x, y = v.pos(units[e[1]])
-                col = {"phys": (255, 150, 120), "magic": (140, 180, 255)}.get(e[3], TEXT)
-                draw_text(s, str(e[2]), (x + 10, y - 26 - age * 40), 14, col, "center")
+            if kind == "dmg" and age < 0.7:
+                p = head(e[1])
+                if p:
+                    col = {"phys": (255, 150, 120), "magic": (140, 180, 255)}.get(e[3], TEXT)
+                    draw_text_shadow(s, str(e[2]), (p[0] + 14, p[1] - 10 - age * 40), 15, col, "center")
             elif kind == "heal" and age < 0.7:
-                x, y = v.pos(units[e[1]])
-                draw_text(s, "+" + str(e[2]), (x - 10, y - 26 - age * 40), 14, GREEN, "center")
+                p = head(e[1])
+                if p:
+                    draw_text_shadow(s, "+" + str(e[2]), (p[0] - 14, p[1] - 10 - age * 40), 14, GREEN, "center")
             elif kind == "miss" and age < 0.5:
-                x, y = v.pos(units[e[1]])
-                draw_text(s, "回避", (x, y - 30 - age * 30), 13, SUB, "center")
-            elif kind == "cast" and age < 0.45:
-                x, y = v.pos(units[e[1]])
-                rad = int(24 + age * 90)
-                pygame.draw.circle(s, (120, 200, 255), (int(x), int(y)), rad, 3)
-                if age < 0.35:
-                    info = UNITS.get(units[e[1]].uid)
-                    if info:
-                        draw_text(s, info["ability_name"], (x, y + 38), 13, (150, 210, 255), "center")
+                p = head(e[1])
+                if p:
+                    draw_text_shadow(s, "回避", (p[0], p[1] - 14 - age * 30), 13, SUB, "center")
+            elif kind == "cast" and age < 0.5:
+                p = self.app.to_px(w.project((acts[e[1]].x, acts[e[1]].y, 0))) if e[1] in acts else None
+                info = UNITS.get(units[e[1]].uid)
+                if p and info:
+                    draw_text_shadow(s, info["ability_name"], (p[0], p[1] + 14), 14, (150, 210, 255), "center")
             elif kind == "revive" and age < 0.8:
-                x, y = v.pos(units[e[1]])
-                draw_text(s, "復活！", (x, y - 40), 15, (220, 200, 255), "center")
+                p = head(e[1])
+                if p:
+                    draw_text_shadow(s, "復活！", (p[0], p[1] - 20), 16, (220, 200, 255), "center")
 
     def draw_overlay(self, s, title, sub, buttons):
-        sh = pygame.Surface((W, H), pygame.SRCALPHA)
-        sh.fill((0, 0, 0, 170))
-        s.blit(sh, (0, 0))
-        draw_panel(s, pygame.Rect(400, 200, 480, 300))
+        shade_screen(s, 170)
+        draw_panel(s, pygame.Rect(400, 200, 480, 300), PANEL + (250,))
         draw_text(s, title, (640, 250), 30, GOLD, "center")
         if sub:
             draw_text(s, sub, (640, 300), 18, SUB, "center")
-        m = pygame.mouse.get_pos()
+        m = mouse_pos()
         for b in buttons:
             b.draw(s, m)
 
     def draw_ranking(self, s):
-        sh = pygame.Surface((W, H), pygame.SRCALPHA)
-        sh.fill((0, 0, 0, 180))
-        s.blit(sh, (0, 0))
-        draw_panel(s, pygame.Rect(390, 90, 500, 600))
+        shade_screen(s, 180)
+        draw_panel(s, pygame.Rect(390, 90, 500, 600), PANEL + (250,))
         draw_text(s, "最終結果", (640, 130), 34, GOLD, "center")
         ps = sorted(self.st["players"], key=lambda p: p["placement"] or 99)
         for i, p in enumerate(ps):
             col = GOLD if p["placement"] == 1 else (ACCENT if p["pid"] == self.st["me"]["pid"] else TEXT)
             draw_text(s, f"{p['placement']}位", (450, 180 + i * 52), 26, col)
             draw_text(s, p["name"], (540, 184 + i * 52), 22, col)
-        m = pygame.mouse.get_pos()
+        m = mouse_pos()
         for b in self.end_buttons:
             b.draw(s, m)
 
 
 # ---------------- アプリ本体 ----------------
-class App:
-    def __init__(self, screen):
-        self.screen = screen
-        self.scene = None
-        self.player_name = "プレイヤー"
-        self.running = True
-        self.go(TitleScene(self))
+def configure_panda(offscreen=False):
+    lines = [f"window-title {GAME_TITLE}  ver {VERSION}", f"win-size {W} {H}", "sync-video 1",
+             "framebuffer-multisample 1", "multisamples 4", "audio-library-name null",
+             "textures-power-2 none", "notify-level error", "default-directnotify-level error",
+             "load-display pandagl"]
+    if getattr(sys, "frozen", False):
+        lines.append(f"plugin-path {os.path.join(sys._MEIPASS, 'panda3d')}")
+        lines.append(f"plugin-path {sys._MEIPASS}")
+    if offscreen:
+        lines.append("window-type offscreen")
+    loadPrcFileData("", "\n".join(lines))
 
+
+class App:
+    def __init__(self, base):
+        global APP
+        APP = self
+        from panda3d.core import CardMaker, KeyboardButton, Texture, TransparencyAttrib
+        import world3d
+        self.base = base
+        self.world = world3d.World(base)
+        self.surf = pygame.Surface((W, H), pygame.SRCALPHA)
+        self.tex = Texture("ui")
+        self.tex.setup2dTexture(W, H, Texture.T_unsigned_byte, Texture.F_rgba8)
+        self.tex.setMinfilter(Texture.FT_linear)
+        self.tex.setMagfilter(Texture.FT_linear)
+        cm = CardMaker("ui")
+        cm.setFrame(-1, 1, -1, 1)
+        card = base.render2d.attachNewNode(cm.generate())
+        card.setTexture(self.tex)
+        card.setTransparency(TransparencyAttrib.MAlpha)
+        self.ctrl_btn = KeyboardButton.control()
+        self.mouse = (W // 2, H // 2)
+        self.events = []
+        self.rdrag = None
+        self.player_name = "プレイヤー"
+        self.remote_data = None
+        self.remote_changed = False
+        self.fetching = False
+        self.scene = None
+        if base.buttonThrowers:  # 画面なし（自動テスト）のときは無い
+            bt = base.buttonThrowers[0].node()
+            bt.setButtonDownEvent("btn_down")
+            bt.setButtonUpEvent("btn_up")
+            bt.setKeystrokeEvent("keystroke")
+        base.accept("btn_down", self.on_down)
+        base.accept("btn_up", self.on_up)
+        base.accept("keystroke", self.on_key)
+        base.exitFunc = self.on_exit
+        self.fetch_remote()
+        self.go(TitleScene(self))
+        base.taskMgr.add(self.loop, "hexarena-loop")
+
+    # ----- データ -----
+    def fetch_remote(self):
+        if self.fetching:
+            return
+        self.fetching = True
+
+        def run():
+            d = data.fetch_remote()
+            if d is not None:
+                self.remote_data = d
+            self.fetching = False
+            self.remote_changed = True
+        threading.Thread(target=run, daemon=True).start()
+
+    def restore_data(self):
+        """タイトルに戻ったら自分のデータに戻す（ホストのデータを受け取っていた場合など）"""
+        data.load_preferred(self.remote_data)
+
+    # ----- 画面 -----
     def go(self, scene):
         if self.scene is not None and hasattr(self.scene, "leave"):
             try:
@@ -1275,39 +1528,141 @@ class App:
             except Exception:
                 pass
         self.scene = scene
-        if getattr(scene, "text_input", False):
-            pygame.key.start_text_input()
-        else:
-            pygame.key.stop_text_input()
 
-    def run(self):
-        clock = pygame.time.Clock()
-        while self.running:
-            dt = min(0.1, clock.tick(60) / 1000.0)
-            for e in pygame.event.get():
-                if e.type == pygame.QUIT:
-                    self.running = False
-                else:
-                    self.scene.handle(e)
-            self.scene.update(dt)
-            self.scene.draw(self.screen)
-            pygame.display.flip()
-        if hasattr(self.scene, "leave"):
+    def quit(self):
+        self.base.userExit()
+
+    def on_exit(self):
+        if self.scene is not None and hasattr(self.scene, "leave"):
             try:
                 self.scene.leave()
             except Exception:
                 pass
 
+    # ----- 座標 -----
+    def to_ndc(self, pos):
+        return (pos[0] / W * 2 - 1, 1 - pos[1] / H * 2)
+
+    def to_px(self, ndc):
+        if ndc is None:
+            return None
+        return ((ndc[0] + 1) / 2 * W, (1 - ndc[1]) / 2 * H)
+
+    # ----- 入力 -----
+    def ctrl(self):
+        mw = self.base.mouseWatcherNode
+        return mw is not None and mw.isButtonDown(self.ctrl_btn)
+
+    def on_down(self, name):
+        if name == "mouse1":
+            self.events.append(Ev(pygame.MOUSEBUTTONDOWN, pos=self.mouse, button=1))
+        elif name == "mouse3":
+            self.rdrag = self.mouse
+        elif name in ("wheel_up", "wheel_down"):
+            if isinstance(self.scene, GameScene):
+                self.world.zoom(0.92 if name == "wheel_up" else 1.08)
+        else:
+            key = KEYMAP.get(name)
+            if key is None and len(name) == 1 and "a" <= name <= "z":
+                key = ord(name)
+            if key is not None:
+                self.events.append(Ev(pygame.KEYDOWN, key=key, mod=pygame.KMOD_CTRL if self.ctrl() else 0))
+
+    def on_up(self, name):
+        if name == "mouse1":
+            self.events.append(Ev(pygame.MOUSEBUTTONUP, pos=self.mouse, button=1))
+        elif name == "mouse3":
+            self.rdrag = None
+
+    def on_key(self, ch):
+        if ch and ord(ch[0]) >= 32 and ch != "\x7f" and not self.ctrl():
+            self.events.append(Ev(pygame.TEXTINPUT, text=ch))
+
+    def poll_mouse(self):
+        mw = self.base.mouseWatcherNode
+        if mw is not None and mw.hasMouse():
+            m = mw.getMouse()
+            self.mouse = (int((m.x + 1) / 2 * W), int((1 - m.y) / 2 * H))
+        if self.rdrag is not None and isinstance(self.scene, GameScene):
+            dx = self.mouse[0] - self.rdrag[0]
+            dy = self.mouse[1] - self.rdrag[1]
+            if dx or dy:
+                self.world.rotate_camera(dx, dy)
+            self.rdrag = self.mouse
+
+    # ----- 毎フレーム -----
+    def step(self, dt):
+        self.poll_mouse()
+        evs, self.events = self.events, []
+        for e in evs:
+            self.scene.handle(e)
+        scene = self.scene
+        scene.update(dt)
+        if self.scene is scene:
+            if hasattr(scene, "sync3d"):
+                scene.sync3d(self.world)
+            else:
+                self.world.begin_sync()
+                self.world.end_sync()
+        self.world.update(dt)
+        self.surf.fill((0, 0, 0, 0))
+        self.scene.draw(self.surf)
+        self.tex.setRamImage(pygame.image.tobytes(self.surf, "BGRA", True))
+
+    def loop(self, task):
+        from panda3d.core import ClockObject
+        dt = min(0.1, ClockObject.getGlobalClock().getDt())
+        try:
+            self.step(dt)
+        except Exception:
+            import traceback
+            if sys.stderr:
+                traceback.print_exc()
+            log_error(traceback.format_exc())
+            self.go(TitleScene(self, "エラーが起きたのでタイトルに戻りました（hexarena_error.log を確認）"))
+        return task.cont
+
+
+def log_error(text):
+    try:
+        if getattr(sys, "frozen", False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(base_dir, "hexarena_error.log"), "a", encoding="utf-8") as f:
+            f.write(time.strftime("[%Y-%m-%d %H:%M:%S]\n") + text + "\n")
+    except OSError:
+        pass
+
+
+def create_app(offscreen=False):
+    configure_panda(offscreen)
+    pygame.font.init()
+    from direct.showbase.ShowBase import ShowBase
+    base = ShowBase()
+    return App(base)
+
+
+def smoke_test(path):
+    """起動確認用：画面を出さずに数十フレーム動かし、画像を保存して終了する（exeの自動チェック用）"""
+    from panda3d.core import Filename
+    app = create_app(offscreen=True)
+    for _ in range(30):
+        app.base.taskMgr.step()
+    app.go(GameScene(app, HostSession(Game(["テスト"]))))
+    for _ in range(60):
+        app.base.taskMgr.step()
+    ok = app.base.win.saveScreenshot(Filename.fromOsSpecific(path))
+    with open(path + ".txt", "w", encoding="utf-8") as f:  # 画面なしのexeでは print が使えないのでファイルに書く
+        f.write(("SMOKE_OK" if ok else "SMOKE_FAIL") + f" {data.DATA_SOURCE} units={len(UNITS)}\n")
+    os._exit(0 if ok else 1)
+
 
 def main():
-    pygame.init()
-    pygame.display.set_caption(f"{GAME_TITLE}  ver {VERSION}")
-    try:
-        screen = pygame.display.set_mode((W, H), pygame.SCALED | pygame.RESIZABLE)
-    except pygame.error:
-        screen = pygame.display.set_mode((W, H))
-    App(screen).run()
-    pygame.quit()
+    if os.environ.get("HEXARENA_SMOKETEST"):
+        smoke_test(os.environ["HEXARENA_SMOKETEST"])
+    app = create_app()
+    app.base.run()
 
 
 if __name__ == "__main__":
