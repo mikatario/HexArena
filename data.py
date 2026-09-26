@@ -16,7 +16,7 @@ import os
 import sys
 import urllib.request
 
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 GAME_TITLE = "ヘックス・アリーナ"
 REMOTE_URL = "https://raw.githubusercontent.com/mikatario/HexArena/main/unit_data.json"
 DATA_FILE = "unit_data.json"
@@ -69,6 +69,50 @@ SKILL_TYPES = {
 }
 PCT_TYPES = {"frenzy", "buff_team"}
 
+# ---------- コントローラー（ゲーム開始時に選ぶ、プレイヤーの分身） ----------
+# 効果の種類：(説明, [(数値の名前, 表示名), ...])
+CONTROLLER_TYPES = {
+    "gold_gain": ("すぐにゴールドを得る", [("amount", "もらえるゴールド")]),
+    "xp_gain": ("すぐに経験値を得る", [("amount", "もらえる経験値")]),
+    "star_up": ("★1ユニットを★2にする（盤面のコストが高い順）", [("count", "強化する体数")]),
+    "summon": ("ランダムなユニットをベンチにもらう", [("tier", "ユニットのコスト"), ("count", "体数")]),
+    "premium_shop": ("高コストだけのショップに引き直す", [("min_cost", "最低コスト")]),
+    "heal": ("体力を回復する", [("amount", "回復量")]),
+    "extra_slot": ("盤面に置ける数を増やす（ずっと）", [("amount", "増える数")]),
+    "battle_buff": ("次の数回の戦闘で味方を強化", [("atk_pct", "攻撃力+%"), ("hp_pct", "最大HP+%"),
+                                                 ("rounds", "続く戦闘の回数")]),
+}
+CONTROLLER_LOOKS = {"merchant": "商人", "sage": "賢者", "smith": "鍛冶師", "summoner": "召喚士", "seer": "占い師",
+                    "guardian": "守護騎士", "strategist": "軍師", "alchemist": "錬金術師"}
+COST_TYPES = {"gold": "ゴールド", "hp": "体力"}
+DEFAULT_CONTROLLERS = [
+    {"id": "midas", "name": "ミダス", "title": "黄金の商人", "look": "merchant", "color": "#d9a441",
+     "skill_name": "黄金の取引", "type": "gold_gain", "cost_type": "hp", "cost": 10, "min_round": 2,
+     "params": {"amount": 15}, "desc": "体力を{cost}払い、すぐに{amount}ゴールドを得る"},
+    {"id": "sophia", "name": "ソフィア", "title": "星読みの賢者", "look": "sage", "color": "#3f6fd0",
+     "skill_name": "星の導き", "type": "xp_gain", "cost_type": "gold", "cost": 4, "min_round": 3,
+     "params": {"amount": 12}, "desc": "{cost}ゴールドで、すぐに経験値を{amount}得る"},
+    {"id": "borg", "name": "ボルグ", "title": "鉄槌の鍛冶師", "look": "smith", "color": "#b0603a",
+     "skill_name": "渾身の鍛錬", "type": "star_up", "cost_type": "gold", "cost": 8, "min_round": 5,
+     "params": {"count": 1}, "desc": "{cost}ゴールドで、コストが一番高い★1ユニット{count}体を★2にする"},
+    {"id": "lumina", "name": "ルミナ", "title": "契約の召喚士", "look": "summoner", "color": "#9b59d0",
+     "skill_name": "契約召喚", "type": "summon", "cost_type": "hp", "cost": 12, "min_round": 6,
+     "params": {"tier": 4, "count": 1}, "desc": "体力を{cost}払い、ランダムな{tier}コストユニットを{count}体ベンチに呼ぶ"},
+    {"id": "misty", "name": "ミスティ", "title": "運命の占い師", "look": "seer", "color": "#4b3f8f",
+     "skill_name": "運命の水晶", "type": "premium_shop", "cost_type": "gold", "cost": 2, "min_round": 4,
+     "params": {"min_cost": 3}, "desc": "{cost}ゴールドで、ショップを{min_cost}コスト以上のユニットだけで引き直す"},
+    {"id": "gald", "name": "ガルド", "title": "不落の守護騎士", "look": "guardian", "color": "#6d8fb0",
+     "skill_name": "不屈の誓い", "type": "heal", "cost_type": "gold", "cost": 6, "min_round": 8,
+     "params": {"amount": 25}, "desc": "{cost}ゴールドで、体力を{amount}回復する（最大体力まで）"},
+    {"id": "kai", "name": "カイ", "title": "天眼の軍師", "look": "strategist", "color": "#3a8f6a",
+     "skill_name": "奇策の陣", "type": "extra_slot", "cost_type": "hp", "cost": 15, "min_round": 4,
+     "params": {"amount": 1}, "desc": "体力を{cost}払い、盤面に置ける数をずっと+{amount}する"},
+    {"id": "arche", "name": "アルケ", "title": "秘薬の錬金術師", "look": "alchemist", "color": "#4aa35a",
+     "skill_name": "禁断の秘薬", "type": "battle_buff", "cost_type": "gold", "cost": 5, "min_round": 3,
+     "params": {"atk_pct": 25, "hp_pct": 25, "rounds": 3},
+     "desc": "{cost}ゴールドで、次の{rounds}回の戦闘だけ味方全員の攻撃力+{atk_pct}%・最大HP+{hp_pct}%"},
+]
+
 # ---------- 読み込んだデータが入る入れ物（中身だけ入れ替えるので import 先でもそのまま使える） ----------
 START_HP = 100
 STAR_MULT = [1.0, 1.8, 3.24]
@@ -81,6 +125,8 @@ UNIT_IDS_BY_COST = {c: [] for c in range(1, 6)}
 TRAITS = {}
 TRAIT_ORDER = {}
 CREEPS = {}
+CONTROLLERS = {}      # id -> コントローラー（並び順どおり）
+SETTINGS = {"select_time": 25}
 CURRENT = {}          # いま使っているデータ（そのまま参加者に送る）
 DATA_SOURCE = ""      # 画面表示用：どこから読んだか
 LOAD_ERRORS = []      # 読み込めなかった理由
@@ -151,6 +197,26 @@ def validate(d):
         _num(st["xp_to_next"].get(str(lv)), f"レベル{lv}の必要経験値")
     if len(st.get("star_mult", [])) != 3:
         raise ValueError("★倍率は3つ（★1・★2・★3）必要です")
+    ctrls = d.get("controllers")
+    if ctrls is not None:
+        if not ctrls:
+            raise ValueError("コントローラーが1人もいません")
+        cids = set()
+        for c in ctrls:
+            nm = c.get("name") or c.get("id")
+            if not c.get("id") or c["id"] in cids:
+                raise ValueError(f"コントローラー「{nm}」のIDが空か重複しています")
+            cids.add(c["id"])
+            if c.get("type") not in CONTROLLER_TYPES:
+                raise ValueError(f"コントローラー「{nm}」の効果の種類「{c.get('type')}」は使えません")
+            if c.get("cost_type") not in COST_TYPES:
+                raise ValueError(f"コントローラー「{nm}」の支払い（gold/hp）が正しくありません")
+            _num(c.get("cost"), f"コントローラー「{nm}」のコスト")
+            _num(c.get("min_round", 1), f"コントローラー「{nm}」の使えるラウンド")
+            for k, _label in CONTROLLER_TYPES[c["type"]][1]:
+                _num((c.get("params") or {}).get(k), f"コントローラー「{nm}」の{_label}")
+            if c["type"] == "summon" and int(float(c["params"]["tier"])) not in (1, 2, 3, 4, 5):
+                raise ValueError(f"コントローラー「{nm}」の呼ぶユニットのコストは1〜5にしてください")
 
 
 def apply(d, source=""):
@@ -207,6 +273,16 @@ def apply(d, source=""):
         CREEPS[c["id"]] = {"name": c["name"], "hp": float(c["hp"]), "atk": float(c["atk"]), "as": float(c["as"]),
                            "armor": float(c["armor"]), "mr": float(c["mr"]), "rng": int(float(c["rng"])),
                            "look": c.get("look") or "slime"}
+    CONTROLLERS.clear()
+    for c in (d.get("controllers") or DEFAULT_CONTROLLERS):
+        params = {k: float(v) for k, v in (c.get("params") or {}).items()}
+        CONTROLLERS[c["id"]] = {"id": c["id"], "name": c.get("name", c["id"]), "title": c.get("title", ""),
+                                "look": c.get("look") or "merchant", "color": c.get("color") or "#8080c0",
+                                "skill_name": c.get("skill_name") or "スキル", "type": c["type"],
+                                "cost_type": c["cost_type"], "cost": int(float(c["cost"])),
+                                "min_round": int(float(c.get("min_round", 1))), "params": params,
+                                "desc": c.get("desc", "")}
+    SETTINGS["select_time"] = float(st.get("select_time", 25))
     CURRENT.clear()
     CURRENT.update(d)
     DATA_SOURCE = source
@@ -321,6 +397,21 @@ def trait_desc(name, tier_index):
         return t["desc"].format(**vals)
     except (KeyError, ValueError, IndexError):
         return t["desc"]
+
+
+def controller_desc(cid):
+    c = CONTROLLERS[cid]
+    vals = {k: f"{v:g}" for k, v in c["params"].items()}
+    vals["cost"] = str(c["cost"])
+    try:
+        return c["desc"].format(**vals)
+    except (KeyError, ValueError, IndexError):
+        return c["desc"]
+
+
+def controller_cost_text(cid):
+    c = CONTROLLERS[cid]
+    return f"{c['cost']}G" if c["cost_type"] == "gold" else f"体力{c['cost']}"
 
 
 def compute_traits(uids):

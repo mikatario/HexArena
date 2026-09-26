@@ -1,5 +1,5 @@
 {
- "data_version": "初期値（2026-09-26）",
+ "data_version": "コントローラー追加（2026-09-26）",
  "settings": {
   "start_hp": 100,
   "star_mult": [
@@ -96,7 +96,8 @@
    "7": 48,
    "8": 72,
    "9": 84
-  }
+  },
+  "select_time": 25
  },
  "skills": [
   {
@@ -1987,6 +1988,139 @@
    "armor": 50,
    "mr": 50,
    "rng": 2
+  }
+ ],
+ "controllers": [
+  {
+   "id": "midas",
+   "name": "ミダス",
+   "title": "黄金の商人",
+   "look": "merchant",
+   "color": "#d9a441",
+   "skill_name": "黄金の取引",
+   "type": "gold_gain",
+   "cost_type": "hp",
+   "cost": 10,
+   "min_round": 2,
+   "params": {
+    "amount": 15
+   },
+   "desc": "体力を{cost}払い、すぐに{amount}ゴールドを得る"
+  },
+  {
+   "id": "sophia",
+   "name": "ソフィア",
+   "title": "星読みの賢者",
+   "look": "sage",
+   "color": "#3f6fd0",
+   "skill_name": "星の導き",
+   "type": "xp_gain",
+   "cost_type": "gold",
+   "cost": 4,
+   "min_round": 3,
+   "params": {
+    "amount": 12
+   },
+   "desc": "{cost}ゴールドで、すぐに経験値を{amount}得る"
+  },
+  {
+   "id": "borg",
+   "name": "ボルグ",
+   "title": "鉄槌の鍛冶師",
+   "look": "smith",
+   "color": "#b0603a",
+   "skill_name": "渾身の鍛錬",
+   "type": "star_up",
+   "cost_type": "gold",
+   "cost": 8,
+   "min_round": 5,
+   "params": {
+    "count": 1
+   },
+   "desc": "{cost}ゴールドで、コストが一番高い★1ユニット{count}体を★2にする"
+  },
+  {
+   "id": "lumina",
+   "name": "ルミナ",
+   "title": "契約の召喚士",
+   "look": "summoner",
+   "color": "#9b59d0",
+   "skill_name": "契約召喚",
+   "type": "summon",
+   "cost_type": "hp",
+   "cost": 12,
+   "min_round": 6,
+   "params": {
+    "tier": 4,
+    "count": 1
+   },
+   "desc": "体力を{cost}払い、ランダムな{tier}コストユニットを{count}体ベンチに呼ぶ"
+  },
+  {
+   "id": "misty",
+   "name": "ミスティ",
+   "title": "運命の占い師",
+   "look": "seer",
+   "color": "#4b3f8f",
+   "skill_name": "運命の水晶",
+   "type": "premium_shop",
+   "cost_type": "gold",
+   "cost": 2,
+   "min_round": 4,
+   "params": {
+    "min_cost": 3
+   },
+   "desc": "{cost}ゴールドで、ショップを{min_cost}コスト以上のユニットだけで引き直す"
+  },
+  {
+   "id": "gald",
+   "name": "ガルド",
+   "title": "不落の守護騎士",
+   "look": "guardian",
+   "color": "#6d8fb0",
+   "skill_name": "不屈の誓い",
+   "type": "heal",
+   "cost_type": "gold",
+   "cost": 6,
+   "min_round": 8,
+   "params": {
+    "amount": 25
+   },
+   "desc": "{cost}ゴールドで、体力を{amount}回復する（最大体力まで）"
+  },
+  {
+   "id": "kai",
+   "name": "カイ",
+   "title": "天眼の軍師",
+   "look": "strategist",
+   "color": "#3a8f6a",
+   "skill_name": "奇策の陣",
+   "type": "extra_slot",
+   "cost_type": "hp",
+   "cost": 15,
+   "min_round": 4,
+   "params": {
+    "amount": 1
+   },
+   "desc": "体力を{cost}払い、盤面に置ける数をずっと+{amount}する"
+  },
+  {
+   "id": "arche",
+   "name": "アルケ",
+   "title": "秘薬の錬金術師",
+   "look": "alchemist",
+   "color": "#4aa35a",
+   "skill_name": "禁断の秘薬",
+   "type": "battle_buff",
+   "cost_type": "gold",
+   "cost": 5,
+   "min_round": 3,
+   "params": {
+    "atk_pct": 25,
+    "hp_pct": 25,
+    "rounds": 3
+   },
+   "desc": "{cost}ゴールドで、次の{rounds}回の戦闘だけ味方全員の攻撃力+{atk_pct}%・最大HP+{hp_pct}%"
   }
  ]
 }

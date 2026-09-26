@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """AIプレイヤーの思考"""
+import data
 from data import UNITS, MAX_LEVEL, BENCH_SIZE, BOARD_ROWS, BOARD_COLS, ROW_PREF, COL_PREF, sell_value
 
 
@@ -75,7 +76,25 @@ def buy_pass(g, p, reserve):
     return bought
 
 
+def maybe_use_skill(g, p):
+    """コントローラーのスキル：決めたラウンドを過ぎ、払えるなら使う（体力が減ってきたら回復役は早めに）"""
+    if p.ctrl_used or p.controller is None:
+        return
+    c = data.CONTROLLERS.get(p.controller)
+    if c is None or g.skill_block_reason(p):
+        return
+    if c["type"] == "heal":
+        if p.hp <= 55:
+            g.use_skill(p)
+        return
+    if c["cost_type"] == "hp" and p.hp - c["cost"] < 30:
+        return
+    if g.round >= p.ai_skill_round:
+        g.use_skill(p)
+
+
 def take_turn(g, p):
+    maybe_use_skill(g, p)
     reserve = reserve_for(g, p)
     tl = target_level(g.round, p)
     while p.level < tl and p.gold - 4 >= reserve and p.level < MAX_LEVEL:
@@ -100,7 +119,7 @@ def arrange(g, p):
     # 盤面に出すユニットを選ぶ（強さ＋シナジー）
     chosen = []
     rest = units[:]
-    while rest and len(chosen) < p.level:
+    while rest and len(chosen) < g.board_limit(p):
         tc = {}
         seen = set()
         for u in chosen:

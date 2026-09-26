@@ -33,6 +33,11 @@ class Player:
         self.toast = ""
         self.toast_seq = 0
         self.last_result = ""
+        self.controller = None     # 選んだコントローラーのID
+        self.ctrl_used = False     # スキルを使ったか（1ゲーム1回）
+        self.extra_slots = 0       # 盤面に置ける数の追加分
+        self.buff = None           # 戦闘強化 {"atk_pct", "hp_pct", "rounds"}
+        self.ai_skill_round = 0    # AIがスキルを使うつもりのラウンド
 
     def say(self, text):
         self.toast = text
@@ -63,7 +68,121 @@ class Game:
             if uid:
                 self.pool[uid] -= 1
                 p.bench[0] = [uid, 1]
+        # まずコントローラーを選ぶ（AIはすぐ決める）
+        self.phase = "select"
+        humans = [p for p in self.players if not p.is_ai]
+        self.timer = data.SETTINGS.get("select_time", 25) if humans else 0.0
+        for p in self.players:
+            if p.is_ai:
+                self.pick_controller(p, self.rng.choice(list(data.CONTROLLERS)))
+        if not humans:
+            self.start_round()
+
+    # ---------- コントローラー ----------
+    def pick_controller(self, p, cid):
+        if self.phase != "select" or cid not in data.CONTROLLERS:
+            return
+        p.controller = cid
+        c = data.CONTROLLERS[cid]
+        p.ai_skill_round = c["min_round"] + self.rng.randint(0, 6)
+
+    def finish_select(self):
+        for p in self.players:
+            if p.controller is None:
+                self.pick_controller(p, self.rng.choice(list(data.CONTROLLERS)))
+                if not p.is_ai:
+                    p.say(f"コントローラーは {data.CONTROLLERS[p.controller]['name']} に決まりました")
         self.start_round()
+
+    def board_limit(self, p):
+        return p.level + p.extra_slots
+
+    def skill_block_reason(self, p):
+        """使えない理由（使えるなら None）"""
+        c = data.CONTROLLERS.get(p.controller)
+        if c is None:
+            return "コントローラーがいません"
+        if p.ctrl_used:
+            return "スキルはもう使いました"
+        if self.phase != "planning":
+            return "準備フェーズでだけ使えます"
+        if self.round < c["min_round"]:
+            return f"ラウンド{c['min_round']}から使えます"
+        if c["cost_type"] == "gold" and p.gold < c["cost"]:
+            return "ゴールドが足りません"
+        if c["cost_type"] == "hp" and p.hp <= c["cost"]:
+            return "体力が足りません"
+        return None
+
+    def use_skill(self, p):
+        why = self.skill_block_reason(p)
+        if why:
+            p.say(why)
+            return False
+        c = data.CONTROLLERS[p.controller]
+        pr = c["params"]
+        t = c["type"]
+        ok = True
+        if t == "gold_gain":
+            p.gold += int(pr.get("amount", 0))
+        elif t == "xp_gain":
+            self.add_xp(p, int(pr.get("amount", 0)))
+        elif t == "star_up":
+            ok = self._skill_star_up(p, int(pr.get("count", 1)))
+        elif t == "summon":
+            ok = self._skill_summon(p, int(pr.get("tier", 4)), int(pr.get("count", 1)))
+        elif t == "premium_shop":
+            self.roll_shop(p, min_cost=int(pr.get("min_cost", 3)))
+        elif t == "heal":
+            p.hp = min(max(p.hp, data.START_HP), p.hp + int(pr.get("amount", 0)))
+        elif t == "extra_slot":
+            p.extra_slots += int(pr.get("amount", 1))
+        elif t == "battle_buff":
+            p.buff = {"atk_pct": pr.get("atk_pct", 0), "hp_pct": pr.get("hp_pct", 0),
+                      "rounds": int(pr.get("rounds", 1))}
+        if not ok:
+            return False
+        if c["cost_type"] == "gold":
+            p.gold -= c["cost"]
+        else:
+            p.hp -= c["cost"]
+        p.ctrl_used = True
+        p.ctrl_seq = getattr(p, "ctrl_seq", 0) + 1
+        if not p.is_ai:
+            p.say(f"{c['name']}の「{c['skill_name']}」発動！")
+        self.add_log(f"{p.name}：{c['skill_name']}")
+        return True
+
+    def _skill_star_up(self, p, count):
+        cands = [(loc, u) for loc, u in self.iter_units(p) if u[1] == 1]
+        if not cands:
+            p.say("★1のユニットがいません")
+            return False
+        cands.sort(key=lambda x: (0 if x[0][0] == "board" else 1, -UNITS[x[1][0]]["cost"]))
+        for loc, u in cands[:max(1, count)]:
+            self.set_at(p, loc, [u[0], 2])
+            self.pool[u[0]] = max(0, self.pool[u[0]] - 2)
+            self.try_combine(p, u[0])
+        return True
+
+    def _skill_summon(self, p, tier, count):
+        free = [i for i in range(BENCH_SIZE) if p.bench[i] is None]
+        if not free:
+            p.say("ベンチがいっぱいです（売却して空けてください）")
+            return False
+        got = 0
+        for i in free[:max(1, count)]:
+            uid = self.draw_unit_of_cost(tier)
+            if uid is None:
+                break
+            self.pool[uid] -= 1
+            p.bench[i] = [uid, 1]
+            self.try_combine(p, uid)
+            got += 1
+        if not got:
+            p.say(f"{tier}コストのユニットが売り切れです")
+            return False
+        return True
 
     # ---------- ユーティリティ ----------
     def add_log(self, s):
@@ -136,13 +255,19 @@ class Game:
                 return uid
         return cands[-1][0]
 
-    def roll_shop(self, p):
-        odds = SHOP_ODDS[p.level]
+    def roll_shop(self, p, min_cost=1):
+        odds = list(SHOP_ODDS[p.level])
+        if min_cost > 1:   # 占い師のスキル：安いユニットを出さない
+            odds = [o if ci + 1 >= min_cost else 0 for ci, o in enumerate(odds)]
+            if sum(odds) <= 0:
+                odds = [0] * 5
+                odds[min(5, min_cost) - 1] = 100
+        total = sum(odds) or 100
         for i in range(SHOP_SIZE):
             uid = None
             for _ in range(6):
-                x = self.rng.random() * 100
-                cost, acc = 1, 0
+                x = self.rng.random() * total
+                cost, acc = max(1, min_cost), 0
                 for ci, o in enumerate(odds):
                     acc += o
                     if x < acc:
@@ -231,8 +356,9 @@ class Game:
         if u is None:
             return
         v = self.get_at(p, dst)
-        if src[0] == "bench" and dst[0] == "board" and v is None and self.board_count(p) >= p.level:
-            p.say(f"盤面に置けるのはレベルと同じ {p.level}体 までです")
+        lim = self.board_limit(p)
+        if src[0] == "bench" and dst[0] == "board" and v is None and self.board_count(p) >= lim:
+            p.say(f"盤面に置けるのは {lim}体 までです")
             return
         self.set_at(p, src, v)
         self.set_at(p, dst, u)
@@ -278,6 +404,10 @@ class Game:
             elif t == "ready":
                 if self.phase == "planning":
                     p.ready = not p.ready
+            elif t == "pick":
+                self.pick_controller(p, str(a["id"]))
+            elif t == "skill":
+                self.use_skill(p)
         except (KeyError, ValueError, IndexError, TypeError):
             pass
 
@@ -312,7 +442,7 @@ class Game:
         self.add_log(f"ラウンド{self.round}（{kind}）開始")
 
     def autofill(self, p):
-        while self.board_count(p) < p.level:
+        while self.board_count(p) < self.board_limit(p):
             idx = next((i for i in range(BENCH_SIZE) if p.bench[i]), None)
             if idx is None:
                 break
@@ -322,11 +452,19 @@ class Game:
             p.board[cell[0]][cell[1]] = p.bench[idx]
             p.bench[idx] = None
 
-    def make_setup(self, pa, b_pid, b_name, b_units):
+    @staticmethod
+    def _buff_of(p):
+        if p is None or not p.buff or p.buff.get("rounds", 0) <= 0:
+            return None
+        return {"atk_pct": p.buff["atk_pct"], "hp_pct": p.buff["hp_pct"]}
+
+    def make_setup(self, pa, b_pid, b_name, b_units, pb=None):
         self.cid += 1
         return {"cid": self.cid, "seed": self.rng.randrange(1 << 30),
-                "a": {"pid": pa.pid, "name": pa.name, "units": self.board_units(pa)},
-                "b": {"pid": b_pid, "name": b_name, "units": b_units}}
+                "a": {"pid": pa.pid, "name": pa.name, "units": self.board_units(pa),
+                      "buff": self._buff_of(pa), "ctrl": pa.controller},
+                "b": {"pid": b_pid, "name": b_name, "units": b_units,
+                      "buff": self._buff_of(pb), "ctrl": pb.controller if pb else None}}
 
     def start_combat(self):
         self.phase = "combat"
@@ -350,11 +488,11 @@ class Game:
                 if not any(a.last_opp == b.pid or b.last_opp == a.pid for a, b in pairs):
                     break
             for a, b in pairs:
-                entries.append(("pvp", a, b, self.make_setup(a, b.pid, b.name, self.board_units(b))))
+                entries.append(("pvp", a, b, self.make_setup(a, b.pid, b.name, self.board_units(b), b)))
             if len(order) % 2 == 1:
                 a = order[-1]
                 g = self.rng.choice([q for q in alive if q is not a])
-                entries.append(("ghost", a, g, self.make_setup(a, g.pid, g.name + "（分身）", self.board_units(g))))
+                entries.append(("ghost", a, g, self.make_setup(a, g.pid, g.name + "（分身）", self.board_units(g), g)))
         for kind, a, b, setup in entries:
             res = CombatSim(setup).run_all()
             maxdur = max(maxdur, res["duration"])
@@ -381,6 +519,11 @@ class Game:
         base = stage_damage(self.round)
         for kind, a, b, res, setup in self.pending:
             w = res["winner"]
+            for p in ((a, b) if kind == "pvp" else (a,)):   # 錬金術師の強化は戦闘ごとに1回減る
+                if p.buff and p.buff.get("rounds", 0) > 0:
+                    p.buff["rounds"] -= 1
+                    if p.buff["rounds"] <= 0:
+                        p.buff = None
             if kind == "pve":
                 if w == "a":
                     g = pve_reward(self.round)
@@ -442,6 +585,11 @@ class Game:
         if self.phase == "end":
             return
         self.timer -= dt
+        if self.phase == "select":
+            humans = [p for p in self.players if not p.is_ai]
+            if self.timer <= 0 or all(p.controller for p in humans):
+                self.finish_select()
+            return
         if self.phase == "planning":
             humans = [p for p in self.players if p.alive and not p.is_ai]
             if self.timer <= 0 or all(p.ready for p in humans):
@@ -461,9 +609,13 @@ class Game:
                    "board": p.board, "shop": p.shop, "locked": p.locked, "ready": p.ready,
                    "streak": p.win_streak if p.win_streak else -p.loss_streak,
                    "alive": p.alive, "placement": p.placement, "toast": p.toast,
-                   "toast_seq": p.toast_seq, "result": p.last_result},
+                   "toast_seq": p.toast_seq, "result": p.last_result,
+                   "controller": p.controller, "ctrl_used": p.ctrl_used, "ctrl_seq": getattr(p, "ctrl_seq", 0),
+                   "board_limit": self.board_limit(p), "skill_block": self.skill_block_reason(p),
+                   "buff_rounds": p.buff["rounds"] if p.buff else 0},
             "players": [{"pid": q.pid, "name": q.name, "hp": q.hp, "level": q.level, "alive": q.alive,
-                         "placement": q.placement, "ai": q.is_ai, "board": q.board}
+                         "placement": q.placement, "ai": q.is_ai, "board": q.board,
+                         "controller": q.controller, "ctrl_used": q.ctrl_used}
                         for q in self.players],
             "combat": self.combats.get(pid) if self.phase == "combat" else None,
             "log": self.log[-6:],

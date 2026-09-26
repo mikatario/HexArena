@@ -63,6 +63,11 @@ class CombatSim:
                 if cell in self.grid:
                     continue
                 u = self._make(uid, star, side, mine, theirs)
+                buff = setup[side].get("buff")
+                if buff and uid in UNITS:   # コントローラー（錬金術師）の強化
+                    u.maxhp *= 1 + float(buff.get("hp_pct", 0)) / 100
+                    u.hp = u.maxhp
+                    u.atk *= 1 + float(buff.get("atk_pct", 0)) / 100
                 u.idx = len(self.units)
                 u.r, u.c = cell
                 u.pr, u.pc = cell

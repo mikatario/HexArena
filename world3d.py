@@ -4,7 +4,7 @@ import math
 import random
 
 from panda3d.core import (AmbientLight, DirectionalLight, NodePath, Point2, Point3, PointLight, Vec3, Vec4,
-                          TransparencyAttrib, AntialiasAttrib)
+                          TransparencyAttrib, AntialiasAttrib, LightRampAttrib)
 
 import models3d as MD
 from models3d import MB, M, box, cyl, sphere, ring, hex_prism, rgb, shade, mix
@@ -19,6 +19,8 @@ CAM_PITCH = 50    # 見下ろす角度
 CAM_DIST = 27.2   # カメラまでの距離
 CAM_TY = -3.35    # カメラが見る位置（手前寄り）
 BENCH_Y = -7.35   # ベンチの位置
+CTRL_OWN = (-7.8, -5.9)     # 自分のコントローラーの立ち位置（ベンチの左）
+CTRL_ENEMY = (7.3, 4.6)     # 相手のコントローラーの立ち位置（右奥）
 
 
 def cell_world(r, c):
@@ -33,14 +35,21 @@ def bench_world(i):
 class Actor:
     """画面に出ているユニット1体"""
 
-    def __init__(self, world, key, uid, info, star, team_rgb, creep):
+    def __init__(self, world, key, uid, info, star, team_rgb, creep, controller=False):
         self.world = world
         self.key = key
-        self.sig = (uid, star, team_rgb)
-        self.model = MD.make_model(uid, info, star, team_rgb, creep)
+        self.sig = (uid, star, team_rgb, controller, info.get("look"), info.get("color"))
+        if controller:
+            self.model = MD.make_controller(uid, info, team_rgb)
+        else:
+            self.model = MD.make_model(uid, info, star, team_rgb, creep)
         self.np = self.model.root
         self.np.reparentTo(world.units_root)
         self.x = self.y = 0.0
+        self.px = self.py = None
+        self.walk = 0.0
+        self.speed = 0.0
+        self.focus = 0.0      # 選択画面で強調するとき 1
         self.heading = 0.0
         self.phase = random.random() * 6.28
         self.t_attack = -9.0
@@ -93,34 +102,64 @@ class Actor:
     def head_pos(self):
         return (self.x, self.y, self.model.height + self.lift + self.hop)
 
-    def update(self, now):
+    def update(self, now, dt):
+        # 移動の速さ → 歩きの動き
+        if self.px is not None and dt > 0:
+            sp = math.hypot(self.x - self.px, self.y - self.py) / dt
+            self.speed += (min(sp, 6.0) - self.speed) * min(1.0, dt * 10)
+        self.px, self.py = self.x, self.y
+        moving = self.speed > 0.3 and self.lift == 0
+        if moving:
+            self.walk += dt * 11
         z = self.hop + self.lift
         if self.float:
             z += 0.12 + 0.06 * math.sin(now * 2.2 + self.phase)
+        z += 0.12 * self.focus * abs(math.sin(now * 5 + self.phase))
         self.np.setPos(self.x, self.y, z)
-        self.np.setH(self.heading)
-        body = self.model.body
-        bob = 0.025 * math.sin(now * 3.0 + self.phase)
+        self.np.setH(self.heading + self.focus * 20 * math.sin(now * 2))
+        m = self.model
+        body = m.body
+        breathe = math.sin(now * 3.0 + self.phase)
+        bob = 0.02 * breathe
         lunge = 0.0
-        swing = 20.0 + 6 * math.sin(now * 2.0 + self.phase)
+        tilt = 0.0
+        swing = 18.0 + 5 * math.sin(now * 2.0 + self.phase)
+        swing_l = 12 + 5 * math.sin(now * 2.0 + self.phase + 1)
+        leg = 0.0
+        if moving:
+            leg = 32 * math.sin(self.walk)
+            bob += 0.04 * abs(math.sin(self.walk))
+            tilt = 8
+            swing = 18 - leg * 0.6
+            swing_l = 12 + leg * 0.6
         a = now - self.t_attack
-        if 0 <= a < 0.3:
-            k = math.sin(a / 0.3 * math.pi)
-            lunge = 0.22 * k
-            swing = 20 + 85 * k
+        if 0 <= a < 0.32:
+            k = math.sin(a / 0.32 * math.pi)
+            lunge = 0.24 * k
+            tilt = 14 * k
+            swing = 18 + 95 * k
         c = now - self.t_cast
         spin = 0.0
-        if 0 <= c < 0.45:
-            k = c / 0.45
-            bob += 0.35 * math.sin(k * math.pi)
+        if 0 <= c < 0.5:
+            k = c / 0.5
+            bob += 0.4 * math.sin(k * math.pi)
             spin = 360 * k
-            swing = 150 * math.sin(k * math.pi)
-        body.setPos(0, lunge, 0.06 + bob)
-        body.setH(spin)
-        if self.model.arm_r and not self.model.arm_r.isEmpty():
-            self.model.arm_r.setP(swing)
-        if self.model.arm_l and not self.model.arm_l.isEmpty():
-            self.model.arm_l.setP(15 + 5 * math.sin(now * 2.0 + self.phase + 1))
+            swing = 160 * math.sin(k * math.pi)
+            swing_l = 160 * math.sin(k * math.pi)
+        body.setPos(0, lunge, 0.07 + bob)
+        body.setHpr(spin, -tilt, 0)
+        body.setSz(1 + 0.015 * breathe)
+        if m.arm_r and not m.arm_r.isEmpty():
+            m.arm_r.setP(swing)
+        if m.arm_l and not m.arm_l.isEmpty():
+            m.arm_l.setP(swing_l)
+        if m.leg_r and not m.leg_r.isEmpty():
+            m.leg_r.setP(leg)
+        if m.leg_l and not m.leg_l.isEmpty():
+            m.leg_l.setP(-leg)
+        if m.aura and not m.aura.isEmpty():
+            m.aura.setH(now * 60 + self.phase * 50)
+            m.aura.setZ(0.05 * math.sin(now * 2 + self.phase))
         h = now - self.t_hit
         if not self.dim:
             if 0 <= h < 0.12:
@@ -152,6 +191,8 @@ class World:
         self._arena()
         self._board()
         self.units_root = self.render.attachNewNode("units")
+        # ユニットはアニメ調の陰影（明・中・暗の3段階）
+        self.units_root.setAttrib(LightRampAttrib.makeDoubleThreshold(0.12, 0.72, 0.5, 1.0))
         self.fx_root = self.render.attachNewNode("fx")
         self.fx_root.setLightOff(1)
         self.fx_root.setShaderOff(1)
@@ -180,7 +221,7 @@ class World:
         dl = DirectionalLight("sun")
         dl.setColor(Vec4(0.95, 0.88, 0.78, 1))
         self.sun = r.attachNewNode(dl)
-        self.sun.setHpr(35, -58, 0)
+        self.sun.setHpr(155, -52, 0)   # カメラ側（手前）から照らす
         try:
             dl.setShadowCaster(True, 2048, 2048)
             lens = dl.getLens()
@@ -192,7 +233,7 @@ class World:
         fill = DirectionalLight("fill")
         fill.setColor(Vec4(0.18, 0.22, 0.35, 1))
         fn = r.attachNewNode(fill)
-        fn.setHpr(-140, -25, 0)
+        fn.setHpr(-30, -25, 0)
         r.setLight(fn)
         r.setShaderAuto()
 
@@ -285,8 +326,8 @@ class World:
                 top = rgb(62, 80, 118) if own else rgb(64, 60, 70)
                 if (r + c) % 2:
                     top = shade(top, 1.08)
-                hex_prism(mb, M(), TILE_R * 0.93, 0.28, top, shade(top, 0.55))
-                n =root.attachNewNode(mb.node(f"t{r}{c}"))
+                hex_prism(mb, M(), TILE_R * 0.94, 0.3, top, shade(top, 0.5), bevel=0.07, c_edge=shade(top, 1.35))
+                n = root.attachNewNode(mb.node(f"t{r}{c}"))
                 x, y = cell_world(r, c)
                 n.setPos(x, y, 0)
                 self.tiles[(r, c)] = n
@@ -398,14 +439,14 @@ class World:
         for a in self.actors.values():
             a.seen = False
 
-    def actor(self, key, uid, info, star, team_rgb, creep=False):
+    def actor(self, key, uid, info, star, team_rgb, creep=False, controller=False):
         a = self.actors.get(key)
-        sig = (uid, star, team_rgb)
+        sig = (uid, star, team_rgb, controller, info.get("look"), info.get("color"))
         if a is not None and a.sig != sig:
             a.destroy()
             a = None
         if a is None:
-            a = Actor(self, key, uid, info, star, team_rgb, creep)
+            a = Actor(self, key, uid, info, star, team_rgb, creep, controller)
             self.actors[key] = a
         a.seen = True
         return a
@@ -468,7 +509,7 @@ class World:
             self.cam_yaw = 18 * math.sin(self.now * 0.15)
             self.update_camera()
         for a in self.actors.values():
-            a.update(self.now)
+            a.update(self.now, dt)
         keep = []
         for f in self.fx:
             k = (self.now - f["t0"]) / f["dur"]

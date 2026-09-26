@@ -18,7 +18,7 @@ from panda3d.core import loadPrcFileData
 import data
 from data import (UNITS, TRAITS, COST_COLORS, SHOP_ODDS, MAX_LEVEL, BENCH_SIZE, SHOP_SIZE, VERSION,
                   GAME_TITLE, ARCH_NAME, compute_traits, base_stats, ability_desc, ability_value, trait_desc,
-                  sell_value, pve_board, unit_info, resource_path)
+                  sell_value, pve_board, unit_info, resource_path, controller_desc, controller_cost_text)
 from combat import MOVE_TIME, CombatSim
 from game import Game
 import net
@@ -219,6 +219,26 @@ def card_rect(i):
 SHOP_AREA = pygame.Rect(426, 588, 624, 130)
 BTN_XP = pygame.Rect(232, 628, 188, 40)
 BTN_ROLL = pygame.Rect(232, 674, 188, 40)
+BTN_SKILL = pygame.Rect(8, 530, 412, 54)
+
+
+def sel_card_rect(i):
+    """コントローラー選択画面のカード（8枚）"""
+    return pygame.Rect(18 + i * 156, 452, 150, 258)
+
+
+def wrap_text(s, size, width):
+    """日本語を幅に合わせて折り返す"""
+    lines, cur = [], ""
+    for ch in s:
+        if text_surf(cur + ch, size, TEXT).get_width() > width:
+            lines.append(cur)
+            cur = ch
+        else:
+            cur += ch
+    if cur:
+        lines.append(cur)
+    return lines
 BTN_LOCK = pygame.Rect(1066, 598, 208, 44)
 BTN_READY = pygame.Rect(1066, 650, 208, 60)
 TRAIT_X, TRAIT_Y, TRAIT_H = 8, 48, 29
@@ -250,6 +270,26 @@ def unit_tooltip(uid, star, cu=None):
         ab = info["ability"]
         lines.append((f"スキル：{info['ability_name']}", 16, ACCENT))
         lines.append((ability_desc(ab, ability_value(ab, info["cost"], star)), 15, TEXT))
+    return lines
+
+
+def hex_rgb(s):
+    try:
+        s = s.lstrip("#")
+        return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+    except (ValueError, AttributeError, IndexError):
+        return (128, 128, 200)
+
+
+def controller_tooltip(cid, note=None):
+    c = data.CONTROLLERS[cid]
+    lines = [(f"{c['name']}（{c['title']}）", 20, GOLD),
+             (f"スキル：{c['skill_name']}", 16, ACCENT)]
+    for ln in wrap_text(controller_desc(cid), 15, 420):
+        lines.append((ln, 15, TEXT))
+    lines.append((f"コスト {controller_cost_text(cid)}　／　ラウンド{c['min_round']}から　／　1ゲーム1回", 14, SUB))
+    if note:
+        lines.append((note, 14, RED))
     return lines
 
 
@@ -466,6 +506,9 @@ class TitleScene:
                 x, y = cell_world(r, c)
                 a = w.actor(("showc", i), cid, data.CREEPS[cid], 1, ENEMY, True)
                 a.place(x, y, 180)
+        for i, cid in enumerate(list(data.CONTROLLERS)[:2]):
+            a = w.actor(("showk", i), cid, data.CONTROLLERS[cid], 1, OWN, controller=True)
+            a.place(-7.9 if i == 0 else 7.9, -5.7, -35 if i == 0 else 35)
         w.end_sync()
 
     def draw(self, s):
@@ -506,7 +549,8 @@ class HelpScene:
         "7. ゴールドは10ごとに利子+1（最大+5）。連勝・連敗でもボーナスがもらえます。",
         "8. 売却：ユニットをショップ欄へドラッグ、またはマウスを合わせてEキー。",
         "",
-        "【キー】 D＝リロール(2G)  F＝経験値購入(4G)  E＝売却  Space＝準備OK  Esc＝メニュー",
+        "9. 最初に「コントローラー」を選びます。準備フェーズ中に1回だけスキルを使えます（Qキー）。",
+        "【キー】 D＝リロール(2G)  F＝経験値購入(4G)  E＝売却  Q＝コントローラースキル  Space＝準備OK  Esc＝メニュー",
         "【カメラ】 右ドラッグ＝回す　ホイール＝寄る・引く　Home＝元に戻す",
         "【対戦】ホストが「部屋を作る」→表示された部屋コードを伝える→他の人は「部屋に入る」で入力。",
         "　　　 空いた席はAIが入ります。途中で切断した人の席もAIが引き継ぎます。",
@@ -529,8 +573,8 @@ class HelpScene:
         draw_text(s, "遊び方", (640, 50), 36, GOLD, "center")
         y = 105
         for ln in self.LINES:
-            draw_text(s, ln, (110, y), 19, TEXT)
-            y += 36
+            draw_text(s, ln, (110, y), 18, TEXT)
+            y += 34
         self.back.draw(s, mouse_pos())
 
 
@@ -799,6 +843,9 @@ class GameScene:
         self.menu = False
         self.dead_dismissed = False
         self.shown = []          # [(actor, 種類, uid, star, 戦闘中ユニット)] 画面に出ているユニット
+        self.ctrl_seq = -1
+        self.ctrl_cast = False
+        self.sel_hover = None    # 選択画面でマウスが乗っているコントローラー
         self.menu_buttons = [Button((490, 300, 300, 52), "ゲームに戻る", self.close_menu),
                              Button((490, 368, 300, 52), "タイトルへ戻る（退出）", self.to_title)]
         self.dead_buttons = [Button((440, 400, 190, 52), "観戦を続ける", self.dismiss_dead),
@@ -844,6 +891,11 @@ class GameScene:
             if self.toast_seq != -1 and me["toast"]:
                 self.show_toast(me["toast"])
             self.toast_seq = me["toast_seq"]
+        cs = me.get("ctrl_seq", 0)
+        if cs != self.ctrl_seq:
+            if self.ctrl_seq != -1:
+                self.ctrl_cast = True     # 3D側でコントローラーの詠唱演出
+            self.ctrl_seq = cs
         key = (st["round"], me["result"])
         if me["result"] and key != self.last_result and st["phase"] == "planning":
             if self.last_result is not None:
@@ -948,9 +1000,19 @@ class GameScene:
         if not st:
             return
         me = st["me"]
+        if st["phase"] == "select":
+            if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
+                self.menu = True
+            elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                cid = self.select_at(e.pos)
+                if cid:
+                    self.act({"t": "pick", "id": cid})
+            return
         if e.type == pygame.KEYDOWN:
             if e.key == pygame.K_ESCAPE:
                 self.menu = True
+            elif e.key == pygame.K_q and me["alive"]:
+                self.act({"t": "skill"})
             elif e.key == pygame.K_HOME:
                 self.app.world.reset_camera()
             elif not me["alive"]:
@@ -986,6 +1048,9 @@ class GameScene:
             if BTN_READY.collidepoint(pos):
                 self.act({"t": "ready"})
                 return
+            if BTN_SKILL.collidepoint(pos):
+                self.act({"t": "skill"})
+                return
             for i in range(SHOP_SIZE):
                 if card_rect(i).collidepoint(pos) and me["shop"][i]:
                     self.act({"t": "buy", "slot": i})
@@ -1015,6 +1080,35 @@ class GameScene:
             return
         me = st["me"]
         mouse = mouse_pos()
+        if st["phase"] == "select":
+            self._sync_select(w, me, mouse)
+            w.highlight()
+            w.end_sync()
+            return
+        # コントローラー（自分は左手前、対戦中の相手は右奥）
+        from world3d import CTRL_OWN, CTRL_ENEMY
+        mine_c = me.get("controller")
+        if mine_c in data.CONTROLLERS:
+            a = w.actor(("ctrl", "me"), mine_c, data.CONTROLLERS[mine_c], 1, OWN, controller=True)
+            a.place(CTRL_OWN[0], CTRL_OWN[1], -35)
+            if self.ctrl_cast:
+                a.t_cast = w.now
+                w.fx_ring(CTRL_OWN, (255, 220, 120), size=2.6, dur=0.7)
+                w.fx_burst((CTRL_OWN[0], CTRL_OWN[1], 1.2), (255, 230, 150), n=14, dur=0.9, up=1.6, spread=1.0)
+                self.ctrl_cast = False
+            self.shown.append((a, ("ctrl", "me"), mine_c, 1, None))
+        if self.view and self.scout is None:
+            oc = self.view.setup["b" if self.view.my_side == "a" else "a"].get("ctrl")
+            if oc in data.CONTROLLERS:
+                a = w.actor(("ctrl", "opp"), oc, data.CONTROLLERS[oc], 1, ENEMY, controller=True)
+                a.place(CTRL_ENEMY[0], CTRL_ENEMY[1], 180 + 35)
+                self.shown.append((a, ("ctrl", "opp"), oc, 1, None))
+        elif self.scout is not None:
+            sc = st["players"][self.scout].get("controller")
+            if sc in data.CONTROLLERS:
+                a = w.actor(("ctrl", "scout", self.scout), sc, data.CONTROLLERS[sc], 1, SCOUT, controller=True)
+                a.place(CTRL_ENEMY[0], CTRL_ENEMY[1], 180 + 35)
+                self.shown.append((a, ("ctrl", "opp"), sc, 1, None))
         # ベンチ
         for i in range(BENCH_SIZE):
             u = me["bench"][i]
@@ -1063,6 +1157,36 @@ class GameScene:
                 hl_bench = (b,)
         w.highlight(hl_cells, hl_bench)
         w.end_sync()
+
+    # ---------- コントローラー選択 ----------
+    def select_positions(self):
+        from world3d import cell_world
+        ids = list(data.CONTROLLERS)
+        out = {}
+        n = len(ids)
+        for i, cid in enumerate(ids):
+            x = (i - (n - 1) / 2) * min(1.75, 13.0 / max(1, n - 1))
+            y = -1.2 + 0.9 * abs(i - (n - 1) / 2) / max(1, n / 2)
+            out[cid] = (x, y)
+        return out
+
+    def select_at(self, pos):
+        ids = list(data.CONTROLLERS)
+        for i, cid in enumerate(ids[:8]):
+            if sel_card_rect(i).collidepoint(pos):
+                return cid
+        item = self.nearest_shown(pos, ("sel",), rad=60)
+        return item[2] if item else None
+
+    def _sync_select(self, w, me, mouse):
+        self.sel_hover = self.select_at(mouse)
+        for cid, (x, y) in self.select_positions().items():
+            a = w.actor(("sel", cid), cid, data.CONTROLLERS[cid], 1,
+                        GOLD if me.get("controller") == cid else OWN, controller=True)
+            a.place(x, y, 0)
+            want = 1.0 if (cid == self.sel_hover or cid == me.get("controller")) else 0.0
+            a.focus += (want - a.focus) * 0.2
+            self.shown.append((a, ("sel", cid), cid, 1, None))
 
     def _sync_combat(self, w):
         v = self.view
@@ -1162,12 +1286,17 @@ class GameScene:
         w = self.app.world
         tips = None
         me = st["me"]
+        if st["phase"] == "select":
+            self.draw_select(s, st, me, mouse)
+            if self.menu:
+                self.draw_overlay(s, "メニュー", "", self.menu_buttons)
+            return
 
         # 上部バー
         draw_panel(s, pygame.Rect(0, 0, W, 40), PANEL_A, 0)
         kind = "モンスター戦" if st["pve"] else "対人戦"
         draw_text(s, f"ラウンド {st['round']}  ・ {kind}", (12, 20), 18, TEXT, "midleft")
-        ph = {"planning": "準備フェーズ", "combat": "戦闘フェーズ", "end": "ゲーム終了"}[st["phase"]]
+        ph = {"planning": "準備フェーズ", "combat": "戦闘フェーズ", "end": "ゲーム終了"}.get(st["phase"], "")
         tcol = RED if st["timer"] < 6 and st["phase"] == "planning" else TEXT
         draw_text(s, f"{ph}  残り {int(math.ceil(st['timer']))} 秒", (640, 20), 20, tcol, "center")
         odds = SHOP_ODDS[me["level"]]
@@ -1199,6 +1328,8 @@ class GameScene:
                 draw_text_shadow(s, "★" * star, (x, by - 9), 11, STAR_COLORS[star], "center")
                 if cu.stun_until > self.view.sim.t:
                     draw_text_shadow(s, "スタン", (x, by - 24), 12, GOLD, "center")
+            elif kind_[0] == "ctrl":
+                draw_text_shadow(s, data.CONTROLLERS[uid]["name"], (x, y - 4), 14, GOLD, "center")
             else:
                 draw_text_shadow(s, "★" * star, (x, y - 2), 12, STAR_COLORS[star], "center")
         if self.view and self.scout is None:
@@ -1218,12 +1349,16 @@ class GameScene:
                 draw_text_shadow(s, "相手の陣地（戦闘開始時に対戦相手が決まります）", (640, 60), 16, SUB, "center")
             if planning and self.scout is None:
                 cnt = sum(1 for row in me["board"] for u in row if u)
-                col = GOLD if cnt < me["level"] else SUB
-                draw_text_shadow(s, f"盤面 {cnt} / {me['level']} 体", (640, 584), 15, col, "midbottom")
+                lim = me.get("board_limit", me["level"])
+                col = GOLD if cnt < lim else SUB
+                draw_text_shadow(s, f"盤面 {cnt} / {lim} 体", (640, 584), 15, col, "midbottom")
         if not self.drag:
             item = self.nearest_shown(mouse, rad=30)
             if item:
-                tips = unit_tooltip(item[2], item[3], item[4])
+                if item[1][0] == "ctrl":
+                    tips = controller_tooltip(item[2])
+                else:
+                    tips = unit_tooltip(item[2], item[3], item[4])
 
         # シナジー一覧
         uids = [u[0] for row in self.shown_board() for u in row if u]
@@ -1233,7 +1368,7 @@ class GameScene:
         traits = compute_traits(uids)
         draw_text_shadow(s, "シナジー", (TRAIT_X + 4, TRAIT_Y - 2), 14, SUB)
         y = TRAIT_Y + 20
-        for name, cnt, tier in traits[:17]:
+        for name, cnt, tier in traits[:11]:
             th = TRAITS[name]["thresholds"]
             if tier == 0:
                 tc = TIER_COLORS[0]
@@ -1255,6 +1390,11 @@ class GameScene:
             y += TRAIT_H
         if not traits:
             draw_text_shadow(s, "ユニットを盤面に置くと表示", (TRAIT_X + 4, y), 14, SUB)
+        elif len(traits) > 11:
+            rest = traits[11:]
+            rr = draw_text_shadow(s, f"ほか {len(rest)} 種（マウスを乗せると表示）", (TRAIT_X + 4, y + 2), 13, SUB)
+            if rr.collidepoint(mouse):
+                tips = [(f"{n}  {c}体" + ("（発動中）" if t else ""), 15, TEXT if t else SUB) for n, c, t in rest]
 
         # 所持金・レベル
         draw_panel(s, pygame.Rect(8, 592, 216, 122))
@@ -1279,6 +1419,39 @@ class GameScene:
                 col = lighten(col, 30)
             pygame.draw.rect(s, col, rect, border_radius=8)
             draw_text(s, label, rect.center, 17, TEXT if enabled else SUB, "center")
+
+        # コントローラーのスキル
+        cid = me.get("controller")
+        if cid in data.CONTROLLERS:
+            c = data.CONTROLLERS[cid]
+            block = me.get("skill_block")
+            used = me.get("ctrl_used")
+            ready = not block and planning and me["alive"]
+            if used:
+                bg = (34, 36, 44, 235)
+            elif ready:
+                pulse = 0.5 + 0.5 * math.sin(time.monotonic() * 4)
+                bg = (int(110 + 40 * pulse), int(80 + 25 * pulse), 30, 240)
+            else:
+                bg = (44, 42, 58, 235)
+            if ready and BTN_SKILL.collidepoint(mouse):
+                bg = lighten(bg, 25)
+            pygame.draw.rect(s, bg, BTN_SKILL, border_radius=10)
+            pygame.draw.rect(s, GOLD if ready else (80, 84, 100), BTN_SKILL, 2, border_radius=10)
+            colr = hex_rgb(c["color"])
+            pygame.draw.circle(s, colr, (BTN_SKILL.x + 27, BTN_SKILL.centery), 18)
+            draw_text(s, c["name"][:1], (BTN_SKILL.x + 27, BTN_SKILL.centery), 18, TEXT, "center")
+            draw_text(s, f"{c['name']}のスキル：{c['skill_name']}", (BTN_SKILL.x + 54, BTN_SKILL.y + 6), 16,
+                      TEXT if not used else SUB)
+            if used:
+                sub = "使用済み" + (f"（強化 残り{me.get('buff_rounds')}戦）" if me.get("buff_rounds") else "")
+            elif block:
+                sub = f"{controller_cost_text(cid)}　{block}"
+            else:
+                sub = f"{controller_cost_text(cid)}で発動できます [Q]"
+            draw_text(s, sub, (BTN_SKILL.x + 54, BTN_SKILL.y + 29), 14, GOLD if ready else SUB)
+            if BTN_SKILL.collidepoint(mouse):
+                tips = controller_tooltip(cid, block if not used else "このゲームではもう使いました")
 
         # ショップ
         if self.drag:
@@ -1329,7 +1502,9 @@ class GameScene:
             ncol = TEXT if p["alive"] else SUB
             draw_text(s, p["name"], (rc.x + 10, rc.y + 5), 16, ncol)
             if p["alive"]:
-                draw_text(s, f"Lv{p['level']}", (rc.right - 10, rc.y + 6), 14, SUB, "topright")
+                pc = p.get("controller")
+                cname = data.CONTROLLERS[pc]["name"] + "・" if pc in data.CONTROLLERS else ""
+                draw_text(s, f"{cname}Lv{p['level']}", (rc.right - 10, rc.y + 7), 13, SUB, "topright")
                 pygame.draw.rect(s, (40, 22, 22), (rc.x + 10, rc.y + 34, 150, 12), border_radius=4)
                 hpc = GREEN if p["hp"] > 50 else (GOLD if p["hp"] > 25 else RED)
                 ratio = max(0, min(1, p["hp"] / max(1, data.START_HP)))
@@ -1385,6 +1560,59 @@ class GameScene:
             self.draw_ranking(s)
         elif not me["alive"] and not self.dead_dismissed:
             self.draw_overlay(s, f"あなたは {me['placement']}位 でした", "おつかれさまでした", self.dead_buttons)
+
+    def draw_select(self, s, st, me, mouse):
+        """コントローラー選択画面"""
+        draw_panel(s, pygame.Rect(0, 0, W, 40), PANEL_A, 0)
+        draw_text(s, "コントローラーを選んでください", (12, 20), 18, TEXT, "midleft")
+        tcol = RED if st["timer"] < 6 else TEXT
+        draw_text(s, f"残り {int(math.ceil(st['timer']))} 秒（決めないとランダム）", (1268, 20), 17, tcol, "midright")
+        draw_text_shadow(s, "あなたの分身になるキャラクターです。ゲーム中に1回だけスキルを使えます", (640, 64), 17, TEXT,
+                         "center")
+        mine = me.get("controller")
+        if mine in data.CONTROLLERS:
+            others = [p for p in st["players"] if not p["ai"] and p["pid"] != me["pid"]]
+            waiting = [p["name"] for p in others if not p.get("controller")]
+            msg = f"{data.CONTROLLERS[mine]['name']} に決めました。" + (
+                "ほかのプレイヤーを待っています…" if waiting else "")
+            draw_text_shadow(s, msg + "（選び直しもできます）", (640, 92), 16, GOLD, "center")
+        tips = None
+        for i, cid in enumerate(list(data.CONTROLLERS)[:8]):
+            c = data.CONTROLLERS[cid]
+            rc = sel_card_rect(i)
+            sel = cid == mine
+            hov = rc.collidepoint(mouse) or self.sel_hover == cid
+            col = hex_rgb(c["color"])
+            bg = tuple(int(v * 0.28) for v in col) + (238,)
+            if hov:
+                bg = lighten(bg, 22)
+            pygame.draw.rect(s, bg, rc, border_radius=10)
+            pygame.draw.rect(s, GOLD if sel else (col if hov else (70, 74, 92)), rc, 3 if sel else 2,
+                             border_radius=10)
+            pygame.draw.rect(s, col, (rc.x, rc.y, rc.w, 6), border_top_left_radius=10, border_top_right_radius=10)
+            draw_text(s, c["name"], (rc.x + 10, rc.y + 12), 21, TEXT)
+            draw_text(s, c["title"], (rc.x + 10, rc.y + 42), 13, SUB)
+            draw_text(s, c["skill_name"], (rc.x + 10, rc.y + 66), 16, GOLD)
+            y = rc.y + 92
+            for ln in wrap_text(controller_desc(cid), 13, rc.w - 20)[:6]:
+                draw_text(s, ln, (rc.x + 10, y), 13, TEXT)
+                y += 20
+            pygame.draw.line(s, (80, 84, 100), (rc.x + 10, rc.bottom - 50), (rc.right - 10, rc.bottom - 50), 1)
+            draw_text(s, f"コスト {controller_cost_text(cid)}", (rc.x + 10, rc.bottom - 42), 14,
+                      RED if c["cost_type"] == "hp" else GOLD)
+            draw_text(s, f"ラウンド{c['min_round']}から", (rc.x + 10, rc.bottom - 22), 13, SUB)
+            if sel:
+                draw_text(s, "選択中", (rc.right - 10, rc.y + 16), 14, GOLD, "topright")
+        # モデルの上に名前
+        for a, kind_, uid, star, cu in self.shown:
+            if kind_[0] != "sel":
+                continue
+            p = self.app.to_px(self.app.world.project(a.head_pos()))
+            if p:
+                draw_text_shadow(s, data.CONTROLLERS[uid]["name"], (p[0], p[1] - 6), 16,
+                                 GOLD if uid == mine else TEXT, "center")
+        if self.toast_t > 0 and self.toast:
+            draw_text_shadow(s, self.toast, (640, 120), 18, GOLD, "center")
 
     def draw_fx(self, s, v):
         t = v.sim.t
